@@ -3,6 +3,9 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -46,5 +49,24 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             //
         });
+    }
+
+    public function render($request, Throwable $e): \Illuminate\Http\Response|JsonResponse|Response
+    {
+        // Verifica se a requisição espera uma resposta JSON
+        if ($request->expectsJson()) {
+            $status = 500;
+            // Se for uma exceção HTTP, usa o código de status dela
+            if ($e instanceof HttpExceptionInterface) {
+                $status = $e->getStatusCode();
+            }
+
+            return response()->json([
+                'error'   => true,
+                'message' => $e->getMessage() ?: 'Erro interno no servidor'
+            ], $status);
+        }
+
+        return parent::render($request, $e);
     }
 }
