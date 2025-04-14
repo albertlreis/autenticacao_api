@@ -15,7 +15,7 @@ class PerfilController extends Controller
      */
     public function index(): JsonResponse
     {
-        $perfis = AcessoPerfil::all();
+        $perfis = AcessoPerfil::with('permissoes')->get();
         return response()->json($perfis);
     }
 
