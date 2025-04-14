@@ -14,8 +14,10 @@ use App\Http\Controllers\Api\PermissaoController;
 | Rotas para registro e login não requerem autenticação.
 |
 */
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::prefix('v1')->group(function () {
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -25,7 +27,7 @@ Route::post('/login', [AuthController::class, 'login']);
 | Essas rotas requerem que o usuário esteja autenticado.
 |
 */
-Route::middleware('auth:sanctum')->group(function () {
+Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Logout
     Route::post('/logout', [AuthController::class, 'logout']);
 
