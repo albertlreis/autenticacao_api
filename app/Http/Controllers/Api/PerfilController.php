@@ -35,6 +35,11 @@ class PerfilController extends Controller
 
         $perfil = AcessoPerfil::create($request->only('nome', 'descricao'));
 
+        if ($request->has('permissoes')) {
+            $perfil->permissoes()->sync($request->input('permissoes'));
+            $perfil->load('permissoes');
+        }
+
         return response()->json($perfil, 201);
     }
 
@@ -43,7 +48,7 @@ class PerfilController extends Controller
      */
     public function show($id): JsonResponse
     {
-        $perfil = AcessoPerfil::find($id);
+        $perfil = AcessoPerfil::with('permissoes')->find($id);
 
         if (!$perfil) {
             return response()->json(['message' => 'Perfil não encontrado'], 404);
@@ -74,6 +79,11 @@ class PerfilController extends Controller
 
         $perfil->update($request->only('nome', 'descricao'));
 
+        if ($request->has('permissoes')) {
+            $perfil->permissoes()->sync($request->input('permissoes'));
+            $perfil->load('permissoes');
+        }
+
         return response()->json($perfil);
     }
 
@@ -91,5 +101,60 @@ class PerfilController extends Controller
         $perfil->delete();
 
         return response()->json(['message' => 'Perfil removido com sucesso']);
+    }
+
+    /**
+     * Associa uma permissão a um perfil.
+     * O request deve conter o campo 'id_permissao'.
+     */
+    public function assignPermissao(Request $request, $perfil): JsonResponse
+    {
+        $perfil = AcessoPerfil::find($perfil);
+
+        if (!$perfil) {
+            return response()->json(['message' => 'Perfil não encontrado'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'id_permissao' => 'required|integer|exists:permissoes,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $idPermissao = $request->input('id_permissao');
+
+        if (!$perfil->permissoes()->where('permissoes.id', $idPermissao)->exists()) {
+            $perfil->permissoes()->attach($idPermissao);
+        }
+
+        return response()->json([
+            'message' => 'Permissão associada com sucesso',
+            'perfil'  => $perfil->load('permissoes')
+        ]);
+    }
+
+    /**
+     * Remove a associação de uma permissão de um perfil.
+     */
+    public function removePermissao($perfil, $permissao): JsonResponse
+    {
+        $perfil = AcessoPerfil::find($perfil);
+
+        if (!$perfil) {
+            return response()->json(['message' => 'Perfil não encontrado'], 404);
+        }
+
+        if (!$perfil->permissoes()->where('permissoes.id', $permissao)->exists()) {
+            return response()->json(['message' => 'Permissão não associada a este perfil'], 404);
+        }
+
+        $perfil->permissoes()->detach($permissao);
+
+        return response()->json([
+            'message' => 'Permissão removida com sucesso',
+            'perfil'  => $perfil->load('permissoes')
+        ]);
     }
 }
