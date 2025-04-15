@@ -13,12 +13,6 @@ class PermissoesSeeder extends Seeder
         $now = Carbon::now();
 
         $permissoes = [
-            // Permissões básicas
-            ['nome' => 'Criar', 'descricao' => 'Permite criar registros', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Editar', 'descricao' => 'Permite editar registros', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Excluir', 'descricao' => 'Permite excluir registros', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Visualizar', 'descricao' => 'Permite visualizar registros', 'created_at' => $now, 'updated_at' => $now],
-
             // Permissões por módulo
             ['nome' => 'Usuarios: Visualizar', 'descricao' => 'Permite visualizar usuários', 'created_at' => $now, 'updated_at' => $now],
             ['nome' => 'Usuarios: Criar', 'descricao' => 'Permite criar usuários', 'created_at' => $now, 'updated_at' => $now],

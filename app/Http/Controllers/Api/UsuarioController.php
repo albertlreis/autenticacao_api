@@ -28,10 +28,12 @@ class UsuarioController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'nome'  => 'required|string|max:255',
-            'email' => 'required|string|email|max:100|unique:acesso_usuarios',
-            'senha' => 'required|string|min:6',
-            'ativo' => 'sometimes|boolean',
+            'nome'   => 'required|string|max:255',
+            'email'  => 'required|string|email|max:100|unique:acesso_usuarios',
+            'senha'  => 'required|string|min:6',
+            'ativo'  => 'sometimes|boolean',
+            'perfis' => 'sometimes|array',
+            'perfis.*' => 'integer|exists:acesso_perfis,id',
         ]);
 
         if ($validator->fails()) {
@@ -44,6 +46,12 @@ class UsuarioController extends Controller
             'senha' => Hash::make($request->senha),
             'ativo' => $request->has('ativo') ? $request->ativo : true,
         ]);
+
+        // Se o request possuir o array de perfis, sincroniza a associação.
+        if ($request->has('perfis')) {
+            $usuario->perfis()->sync($request->perfis);
+            $usuario->load('perfis');
+        }
 
         return response()->json($usuario, 201);
     }
@@ -74,10 +82,11 @@ class UsuarioController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'nome'  => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|string|email|max:100|unique:acesso_usuarios,email,'.$usuario->id,
-            'senha' => 'sometimes|required|string|min:6',
-            'ativo' => 'sometimes|boolean',
+            'nome'   => 'sometimes|required|string|max:255',
+            'email'  => 'sometimes|required|string|email|max:100|unique:acesso_usuarios,email,'.$usuario->id,
+            'ativo'  => 'sometimes|boolean',
+            'perfis' => 'sometimes|array',
+            'perfis.*' => 'integer|exists:acesso_perfis,id',
         ]);
 
         if ($validator->fails()) {
@@ -90,14 +99,16 @@ class UsuarioController extends Controller
         if ($request->has('email')) {
             $usuario->email = $request->email;
         }
-        if ($request->has('senha')) {
-            $usuario->senha = Hash::make($request->senha);
-        }
         if ($request->has('ativo')) {
             $usuario->ativo = $request->ativo;
         }
 
         $usuario->save();
+
+        if ($request->has('perfis')) {
+            $usuario->perfis()->sync($request->perfis);
+            $usuario->load('perfis');
+        }
 
         return response()->json($usuario);
     }
