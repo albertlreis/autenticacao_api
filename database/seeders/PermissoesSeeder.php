@@ -13,29 +13,85 @@ class PermissoesSeeder extends Seeder
         $now = Carbon::now();
 
         $permissoes = [
-            // Permissões por módulo
-            ['nome' => 'Usuarios: Visualizar', 'descricao' => 'Permite visualizar usuários', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Usuarios: Criar', 'descricao' => 'Permite criar usuários', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Usuarios: Editar', 'descricao' => 'Permite editar usuários', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Usuarios: Excluir', 'descricao' => 'Permite excluir usuários', 'created_at' => $now, 'updated_at' => $now],
+            // Home
+            ['slug' => 'home.visualizar', 'nome' => 'Home: Visualizar', 'descricao' => 'Permite visualizar o painel inicial'],
 
-            ['nome' => 'Produtos: Visualizar', 'descricao' => 'Permite visualizar produtos', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Produtos: Criar', 'descricao' => 'Permite criar produtos', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Produtos: Editar', 'descricao' => 'Permite editar produtos', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Produtos: Excluir', 'descricao' => 'Permite excluir produtos', 'created_at' => $now, 'updated_at' => $now],
+            // Usuários
+            ['slug' => 'usuarios.visualizar', 'nome' => 'Usuários: Visualizar', 'descricao' => 'Permite visualizar usuários'],
+            ['slug' => 'usuarios.criar', 'nome' => 'Usuários: Criar', 'descricao' => 'Permite criar usuários'],
+            ['slug' => 'usuarios.editar', 'nome' => 'Usuários: Editar', 'descricao' => 'Permite editar usuários'],
+            ['slug' => 'usuarios.excluir', 'nome' => 'Usuários: Excluir', 'descricao' => 'Permite excluir usuários'],
+            ['slug' => 'usuarios.atribuir_perfil', 'nome' => 'Usuários: Atribuir Perfil', 'descricao' => 'Permite associar perfis a usuários'],
+            ['slug' => 'usuarios.remover_perfil', 'nome' => 'Usuários: Remover Perfil', 'descricao' => 'Permite remover perfis de usuários'],
 
-            ['nome' => 'Pedidos: Visualizar', 'descricao' => 'Permite visualizar pedidos', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Pedidos: Criar', 'descricao' => 'Permite criar pedidos', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Pedidos: Editar', 'descricao' => 'Permite editar pedidos', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Pedidos: Excluir', 'descricao' => 'Permite excluir pedidos', 'created_at' => $now, 'updated_at' => $now],
+            // Perfis
+            ['slug' => 'perfis.visualizar', 'nome' => 'Perfis: Visualizar', 'descricao' => 'Permite visualizar perfis'],
+            ['slug' => 'perfis.criar', 'nome' => 'Perfis: Criar', 'descricao' => 'Permite criar perfis'],
+            ['slug' => 'perfis.editar', 'nome' => 'Perfis: Editar', 'descricao' => 'Permite editar perfis'],
+            ['slug' => 'perfis.excluir', 'nome' => 'Perfis: Excluir', 'descricao' => 'Permite excluir perfis'],
+            ['slug' => 'perfis.atribuir_permissao', 'nome' => 'Perfis: Atribuir Permissão', 'descricao' => 'Permite associar permissões a perfis'],
+            ['slug' => 'perfis.remover_permissao', 'nome' => 'Perfis: Remover Permissão', 'descricao' => 'Permite remover permissões de perfis'],
 
-            ['nome' => 'Estoque: Visualizar', 'descricao' => 'Permite visualizar estoque', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Estoque: Criar', 'descricao' => 'Permite criar itens de estoque', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Estoque: Editar', 'descricao' => 'Permite editar itens de estoque', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Estoque: Excluir', 'descricao' => 'Permite excluir itens do estoque', 'created_at' => $now, 'updated_at' => $now],
+            // Permissões
+            ['slug' => 'permissoes.visualizar', 'nome' => 'Permissões: Visualizar', 'descricao' => 'Permite visualizar permissões'],
+            ['slug' => 'permissoes.criar', 'nome' => 'Permissões: Criar', 'descricao' => 'Permite criar permissões'],
+            ['slug' => 'permissoes.editar', 'nome' => 'Permissões: Editar', 'descricao' => 'Permite editar permissões'],
+            ['slug' => 'permissoes.excluir', 'nome' => 'Permissões: Excluir', 'descricao' => 'Permite excluir permissões'],
+
+            // Clientes
+            ['slug' => 'clientes.visualizar', 'nome' => 'Clientes: Visualizar', 'descricao' => 'Permite visualizar clientes'],
+            ['slug' => 'clientes.criar', 'nome' => 'Clientes: Criar', 'descricao' => 'Permite cadastrar clientes'],
+            ['slug' => 'clientes.editar', 'nome' => 'Clientes: Editar', 'descricao' => 'Permite editar dados de clientes'],
+            ['slug' => 'clientes.excluir', 'nome' => 'Clientes: Excluir', 'descricao' => 'Permite excluir clientes'],
+
+            // Categorias
+            ['slug' => 'categorias.visualizar', 'nome' => 'Categorias: Visualizar', 'descricao' => 'Permite visualizar categorias'],
+            ['slug' => 'categorias.criar', 'nome' => 'Categorias: Criar', 'descricao' => 'Permite criar categorias'],
+            ['slug' => 'categorias.editar', 'nome' => 'Categorias: Editar', 'descricao' => 'Permite editar categorias'],
+            ['slug' => 'categorias.excluir', 'nome' => 'Categorias: Excluir', 'descricao' => 'Permite excluir categorias'],
+
+            // Produtos
+            ['slug' => 'produtos.visualizar', 'nome' => 'Produtos: Visualizar', 'descricao' => 'Permite visualizar produtos'],
+            ['slug' => 'produtos.criar', 'nome' => 'Produtos: Criar', 'descricao' => 'Permite cadastrar novos produtos'],
+            ['slug' => 'produtos.editar', 'nome' => 'Produtos: Editar', 'descricao' => 'Permite editar produtos'],
+            ['slug' => 'produtos.excluir', 'nome' => 'Produtos: Excluir', 'descricao' => 'Permite excluir produtos'],
+            ['slug' => 'produtos.importar', 'nome' => 'Produtos: Importar XML', 'descricao' => 'Permite importar produtos via XML de nota fiscal'],
+            ['slug' => 'produtos.catalogo', 'nome' => 'Produtos: Ver Catálogo', 'descricao' => 'Permite visualizar o catálogo de produtos'],
+            ['slug' => 'produtos.outlet', 'nome' => 'Produtos: Ver Outlet', 'descricao' => 'Permite acessar produtos em outlet'],
+            ['slug' => 'produtos.configurar_outlet', 'nome' => 'Produtos: Configurar Outlet', 'descricao' => 'Permite configurar os critérios do outlet'],
+            ['slug' => 'produtos.variacoes', 'nome' => 'Produtos: Gerenciar Variações', 'descricao' => 'Permite visualizar e editar variações de produtos'],
+
+            // Pedidos
+            ['slug' => 'pedidos.visualizar', 'nome' => 'Pedidos: Visualizar', 'descricao' => 'Permite visualizar pedidos'],
+            ['slug' => 'pedidos.criar', 'nome' => 'Pedidos: Criar', 'descricao' => 'Permite criar novos pedidos'],
+            ['slug' => 'pedidos.editar', 'nome' => 'Pedidos: Editar', 'descricao' => 'Permite editar pedidos'],
+            ['slug' => 'pedidos.excluir', 'nome' => 'Pedidos: Excluir', 'descricao' => 'Permite excluir pedidos'],
+            ['slug' => 'pedidos.exportar_pdf', 'nome' => 'Pedidos: Exportar PDF', 'descricao' => 'Permite exportar o pedido em PDF'],
+            ['slug' => 'pedidos.enviar_whatsapp', 'nome' => 'Pedidos: Enviar por WhatsApp', 'descricao' => 'Permite enviar o pedido por WhatsApp'],
+
+            // Estoque / Depósitos
+            ['slug' => 'depositos.visualizar', 'nome' => 'Depósitos: Visualizar', 'descricao' => 'Permite visualizar depósitos'],
+            ['slug' => 'depositos.criar', 'nome' => 'Depósitos: Criar', 'descricao' => 'Permite criar depósitos'],
+            ['slug' => 'depositos.editar', 'nome' => 'Depósitos: Editar', 'descricao' => 'Permite editar depósitos'],
+            ['slug' => 'depositos.excluir', 'nome' => 'Depósitos: Excluir', 'descricao' => 'Permite excluir depósitos'],
+            ['slug' => 'estoque.movimentacao', 'nome' => 'Estoque: Movimentação', 'descricao' => 'Permite registrar ou visualizar movimentações de estoque'],
+            ['slug' => 'estoque.historico', 'nome' => 'Estoque: Histórico', 'descricao' => 'Permite visualizar histórico de movimentações'],
+
+            // Relatórios
+            ['slug' => 'relatorios.visualizar', 'nome' => 'Relatórios: Visualizar', 'descricao' => 'Permite visualizar relatórios'],
+            ['slug' => 'relatorios.exportar_excel', 'nome' => 'Relatórios: Exportar Excel', 'descricao' => 'Permite exportar relatórios em Excel'],
+            ['slug' => 'relatorios.exportar_pdf', 'nome' => 'Relatórios: Exportar PDF', 'descricao' => 'Permite exportar relatórios em PDF'],
+
+            // Configurações
+            ['slug' => 'configuracoes.visualizar', 'nome' => 'Configurações: Visualizar', 'descricao' => 'Permite visualizar configurações'],
+            ['slug' => 'configuracoes.editar', 'nome' => 'Configurações: Editar', 'descricao' => 'Permite editar configurações do sistema'],
         ];
+
+        foreach ($permissoes as &$p) {
+            $p['created_at'] = $now;
+            $p['updated_at'] = $now;
+        }
 
         DB::table('acesso_permissoes')->insert($permissoes);
     }
 }
-

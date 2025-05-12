@@ -10,6 +10,7 @@ class CreateAcessoPermissoesTable extends Migration
     {
         Schema::create('acesso_permissoes', function (Blueprint $table) {
             $table->increments('id');
+            $table->string('slug', 100)->unique(); // Ex: 'clientes.visualizar'
             $table->string('nome', 100);
             $table->text('descricao')->nullable();
             $table->timestamp('created_at')->nullable();

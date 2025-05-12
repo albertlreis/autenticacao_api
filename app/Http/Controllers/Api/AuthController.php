@@ -6,11 +6,40 @@ use App\Http\Controllers\Controller;
 use App\Models\AcessoUsuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+    public function me()
+    {
+        $user = Auth::user();
+        $cacheKey = 'permissoes_usuario_' . $user->id;
+
+        if (!Cache::has($cacheKey)) {
+            $permissoes = $user->perfis()
+                ->with('permissoes')
+                ->get()
+                ->pluck('permissoes')
+                ->flatten()
+                ->pluck('slug')
+                ->unique()
+                ->toArray();
+
+            Cache::put($cacheKey, $permissoes, now()->addHours(6));
+        }
+
+        return response()->json([
+            'id' => $user->id,
+            'nome' => $user->nome,
+            'email' => $user->email,
+            'permissoes' => Cache::get($cacheKey, [])
+        ]);
+    }
+
+
     /**
      * Registro de novo usuário.
      */
@@ -60,13 +89,33 @@ class AuthController extends Controller
 
         $token = $usuario->createToken('auth_token')->plainTextToken;
 
+        // Carrega as permissões com base nos perfis
+        $permissoes = $usuario->perfis()
+            ->with('permissoes')
+            ->get()
+            ->pluck('permissoes')
+            ->flatten()
+            ->pluck('slug')
+            ->unique()
+            ->toArray();
+
+        // Cache para futuras requisições
+        Cache::put('permissoes_usuario_' . $usuario->id, $permissoes, now()->addHours(6));
+
         return response()->json([
             'access_token' => $token,
             'token_type'   => 'Bearer',
-            'expires_in'   => 3600, // 1 hora em segundos
-            'user'         => $usuario,
+            'expires_in'   => 3600,
+            'user'         => [
+                'id'         => $usuario->id,
+                'nome'       => $usuario->nome,
+                'email'      => $usuario->email,
+                'ativo'      => $usuario->ativo,
+                'permissoes' => $permissoes,
+            ],
         ]);
     }
+
 
     /**
      * Logout do usuário (revoga token atual).
