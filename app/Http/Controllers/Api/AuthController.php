@@ -9,11 +9,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Throwable;
 
 class AuthController extends Controller
 {
-    public function me()
+    public function me(): JsonResponse
     {
         $user = Auth::user();
         $cacheKey = 'permissoes_usuario_' . $user->id;
@@ -28,21 +30,21 @@ class AuthController extends Controller
                 ->unique()
                 ->toArray();
 
-            Cache::put($cacheKey, $permissoes, now()->addHours(6));
+            try {
+                Cache::put($cacheKey, $permissoes, now()->addHours(6));
+            } catch (Throwable $e) {
+                Log::error("Erro ao salvar cache de permissões do usuário [{$user->id}]: " . $e->getMessage());
+            }
         }
 
         return response()->json([
-            'id' => $user->id,
-            'nome' => $user->nome,
-            'email' => $user->email,
-            'permissoes' => Cache::get($cacheKey, [])
+            'id'         => $user->id,
+            'nome'       => $user->nome,
+            'email'      => $user->email,
+            'permissoes' => Cache::get($cacheKey, []),
         ]);
     }
 
-
-    /**
-     * Registro de novo usuário.
-     */
     public function register(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -62,7 +64,6 @@ class AuthController extends Controller
             'ativo' => true,
         ]);
 
-        // Gera token de acesso
         $token = $usuario->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -71,9 +72,6 @@ class AuthController extends Controller
         ], 201);
     }
 
-    /**
-     * Login do usuário.
-     */
     public function login(Request $request): JsonResponse
     {
         $request->validate([
@@ -89,7 +87,6 @@ class AuthController extends Controller
 
         $token = $usuario->createToken('auth_token')->plainTextToken;
 
-        // Carrega as permissões com base nos perfis
         $permissoes = $usuario->perfis()
             ->with('permissoes')
             ->get()
@@ -99,8 +96,11 @@ class AuthController extends Controller
             ->unique()
             ->toArray();
 
-        // Cache para futuras requisições
-        Cache::put('permissoes_usuario_' . $usuario->id, $permissoes, now()->addHours(6));
+        try {
+            Cache::put('permissoes_usuario_' . $usuario->id, $permissoes, now()->addHours(6));
+        } catch (Throwable $e) {
+            Log::error("Erro ao salvar cache de permissões no login do usuário [{$usuario->id}]: " . $e->getMessage());
+        }
 
         return response()->json([
             'access_token' => $token,
@@ -116,10 +116,6 @@ class AuthController extends Controller
         ]);
     }
 
-
-    /**
-     * Logout do usuário (revoga token atual).
-     */
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
