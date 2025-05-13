@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class CachePermissoes
 {
@@ -16,16 +17,20 @@ class CachePermissoes
             $cacheKey = 'permissoes_usuario_' . $user->id;
 
             if (!Cache::has($cacheKey)) {
-                $permissoes = $user->perfis()
-                    ->with('permissoes')
-                    ->get()
-                    ->pluck('permissoes')
-                    ->flatten()
-                    ->pluck('slug')
-                    ->unique()
-                    ->toArray();
+                try {
+                    $permissoes = $user->perfis()
+                        ->with('permissoes')
+                        ->get()
+                        ->pluck('permissoes')
+                        ->flatten()
+                        ->pluck('slug')
+                        ->unique()
+                        ->toArray();
 
-                Cache::put($cacheKey, $permissoes, now()->addHours(6));
+                    Cache::put($cacheKey, $permissoes, now()->addHours(6));
+                } catch (\Throwable $e) {
+                    Log::error("Erro ao salvar cache de permissões no middleware [{$user->id}]: " . $e->getMessage());
+                }
             }
         }
 
