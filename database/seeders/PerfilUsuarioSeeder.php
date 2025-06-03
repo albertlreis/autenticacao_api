@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\PerfilEnum;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -13,10 +14,9 @@ class PerfilUsuarioSeeder extends Seeder
     {
         $now = Carbon::now();
 
-        // Perfis
-        DB::table('acesso_perfis')->insert([
-            ['nome' => 'Administrador', 'descricao' => 'Acesso total ao sistema', 'created_at' => $now, 'updated_at' => $now],
-            ['nome' => 'Vendedor', 'descricao' => 'Acesso comercial restrito', 'created_at' => $now, 'updated_at' => $now],
+        DB::table('acesso_perfis')->insertOrIgnore([
+            ['nome' => PerfilEnum::ADMINISTRADOR->value, 'descricao' => 'Acesso total ao sistema','created_at' => now(), 'updated_at' => now()],
+            ['nome' => PerfilEnum::VENDEDOR->value, 'descricao' => 'Acesso comercial restrito','created_at' => now(), 'updated_at' => now()],
         ]);
 
         // Usuários

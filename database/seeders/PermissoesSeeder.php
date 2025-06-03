@@ -15,6 +15,13 @@ class PermissoesSeeder extends Seeder
         $permissoes = [
             // Home
             ['slug' => 'home.visualizar', 'nome' => 'Home: Visualizar', 'descricao' => 'Permite visualizar o painel inicial'],
+            ['slug' => 'home.graficos', 'nome' => 'Home: Gráficos', 'descricao' => 'Permite visualizar gráficos do painel'],
+            ['slug' => 'home.kpis', 'nome' => 'Home: Indicadores', 'descricao' => 'Permite visualizar os indicadores (KPIs) do painel'],
+            ['slug' => 'home.modais', 'nome' => 'Home: Modais', 'descricao' => 'Permite acessar os modais de KPIs e estoque crítico'],
+
+            //Dashboard
+            ['slug' => 'dashboard.admin', 'nome' => 'Dashborad: Administrador', 'descricao' => 'Permite acessar o dashboard de administração'],
+            ['slug' => 'dashboard.vendedor', 'nome' => 'Dashborad: Vendedor', 'descricao' => 'Permite acessar o dashboard de vendedores'],
 
             // Usuários
             ['slug' => 'usuarios.visualizar', 'nome' => 'Usuários: Visualizar', 'descricao' => 'Permite visualizar usuários'],
@@ -61,6 +68,15 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'produtos.configurar_outlet', 'nome' => 'Produtos: Configurar Outlet', 'descricao' => 'Permite configurar os critérios do outlet'],
             ['slug' => 'produtos.variacoes', 'nome' => 'Produtos: Gerenciar Variações', 'descricao' => 'Permite visualizar e editar variações de produtos'],
 
+            // Produto Variações
+            ['slug' => 'produto_variacoes.visualizar', 'nome' => 'Variações: Visualizar', 'descricao' => 'Permite visualizar variações de produto'],
+            ['slug' => 'produto_variacoes.criar', 'nome' => 'Variações: Criar', 'descricao' => 'Permite criar variações'],
+            ['slug' => 'produto_variacoes.editar', 'nome' => 'Variações: Editar', 'descricao' => 'Permite editar variações'],
+            ['slug' => 'produto_variacoes.excluir', 'nome' => 'Variações: Excluir', 'descricao' => 'Permite excluir variações'],
+
+            // Produtos - Atributos
+            ['slug' => 'produtos.atributos', 'nome' => 'Produtos: Atributos', 'descricao' => 'Permite gerenciar atributos dos produtos'],
+
             // Pedidos
             ['slug' => 'pedidos.visualizar', 'nome' => 'Pedidos: Visualizar', 'descricao' => 'Permite visualizar pedidos'],
             ['slug' => 'pedidos.criar', 'nome' => 'Pedidos: Criar', 'descricao' => 'Permite criar novos pedidos'],
@@ -68,6 +84,9 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'pedidos.excluir', 'nome' => 'Pedidos: Excluir', 'descricao' => 'Permite excluir pedidos'],
             ['slug' => 'pedidos.exportar_pdf', 'nome' => 'Pedidos: Exportar PDF', 'descricao' => 'Permite exportar o pedido em PDF'],
             ['slug' => 'pedidos.enviar_whatsapp', 'nome' => 'Pedidos: Enviar por WhatsApp', 'descricao' => 'Permite enviar o pedido por WhatsApp'],
+            ['slug' => 'pedidos.importar_pdf', 'nome' => 'Pedidos: Importar PDF', 'descricao' => 'Permite importar pedidos a partir de arquivos PDF'],
+            ['slug' => 'pedidos.alterar_status', 'nome' => 'Pedidos: Alterar Status', 'descricao' => 'Permite alterar status de pedidos'],
+            ['slug' => 'pedidos.cancelar_status', 'nome' => 'Pedidos: Cancelar Status', 'descricao' => 'Permite cancelar status críticos'],
 
             // Estoque / Depósitos
             ['slug' => 'depositos.visualizar', 'nome' => 'Depósitos: Visualizar', 'descricao' => 'Permite visualizar depósitos'],
@@ -85,6 +104,14 @@ class PermissoesSeeder extends Seeder
             // Configurações
             ['slug' => 'configuracoes.visualizar', 'nome' => 'Configurações: Visualizar', 'descricao' => 'Permite visualizar configurações'],
             ['slug' => 'configuracoes.editar', 'nome' => 'Configurações: Editar', 'descricao' => 'Permite editar configurações do sistema'],
+
+            // Carrinhos
+            ['slug' => 'carrinhos.finalizar', 'nome' => 'Carrinhos: Finalizar', 'descricao' => 'Permite finalizar um carrinho'],
+
+            // Consignações
+            ['slug' => 'consignacoes.visualizar', 'nome' => 'Consignações: Visualizar', 'descricao' => 'Permite visualizar consignações'],
+            ['slug' => 'consignacoes.gerenciar', 'nome' => 'Consignações: Gerenciar', 'descricao' => 'Permite alterar status e devolver itens'],
+
         ];
 
         foreach ($permissoes as &$p) {
@@ -92,6 +119,11 @@ class PermissoesSeeder extends Seeder
             $p['updated_at'] = $now;
         }
 
-        DB::table('acesso_permissoes')->insert($permissoes);
+        foreach ($permissoes as $p) {
+            DB::table('acesso_permissoes')->updateOrInsert(
+                ['slug' => $p['slug']],
+                array_merge($p, ['created_at' => $now, 'updated_at' => $now])
+            );
+        }
     }
 }
