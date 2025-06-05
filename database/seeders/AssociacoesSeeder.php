@@ -2,27 +2,32 @@
 
 namespace Database\Seeders;
 
+use App\Enums\PerfilEnum;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class AssociacoesSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
         $now = Carbon::now();
 
-        $adminPerfil = DB::table('acesso_perfis')->where('nome', 'Administrador')->first();
-        $vendedorPerfil = DB::table('acesso_perfis')->where('nome', 'Vendedor')->first();
+        $adminPerfil = DB::table('acesso_perfis')->where('nome', PerfilEnum::ADMINISTRADOR->value)->first();
+        $vendedorPerfil = DB::table('acesso_perfis')->where('nome', PerfilEnum::VENDEDOR->value)->first();
 
-        $adminUser = DB::table('acesso_usuarios')->where('email', 'admin@teste.com')->first();
-        $vendedorUser = DB::table('acesso_usuarios')->where('email', 'vendedor@teste.com')->first();
+        $usuarios = DB::table('acesso_usuarios')->get();
 
-        // Associações de usuários com perfis
-        DB::table('acesso_usuario_perfil')->insert([
-            ['id_usuario' => $adminUser->id, 'id_perfil' => $adminPerfil->id, 'created_at' => $now, 'updated_at' => $now],
-            ['id_usuario' => $vendedorUser->id, 'id_perfil' => $vendedorPerfil->id, 'created_at' => $now, 'updated_at' => $now],
-        ]);
+        foreach ($usuarios as $usuario) {
+            $perfil = str_contains($usuario->email, 'admin') ? $adminPerfil : $vendedorPerfil;
+
+            DB::table('acesso_usuario_perfil')->insert([
+                'id_usuario' => $usuario->id,
+                'id_perfil' => $perfil->id,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
 
         // Permissões
         $todasPermissoes = DB::table('acesso_permissoes')->get();
