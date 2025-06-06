@@ -79,6 +79,8 @@ class PermissoesSeeder extends Seeder
 
             // Pedidos
             ['slug' => 'pedidos.visualizar', 'nome' => 'Pedidos: Visualizar', 'descricao' => 'Permite visualizar pedidos'],
+            ['slug' => 'pedidos.visualizar.todos', 'nome' => 'Pedidos: Visualizar Todos', 'descricao' => 'Permite visualizar pedidos de todos os usuários'],
+            ['slug' => 'pedidos.estatisticas', 'nome' => 'Pedidos: Estatísticas', 'descricao' => 'Permite visualizar estatísticas de pedidos'],
             ['slug' => 'pedidos.criar', 'nome' => 'Pedidos: Criar', 'descricao' => 'Permite criar novos pedidos'],
             ['slug' => 'pedidos.editar', 'nome' => 'Pedidos: Editar', 'descricao' => 'Permite editar pedidos'],
             ['slug' => 'pedidos.excluir', 'nome' => 'Pedidos: Excluir', 'descricao' => 'Permite excluir pedidos'],
@@ -111,6 +113,7 @@ class PermissoesSeeder extends Seeder
             // Consignações
             ['slug' => 'consignacoes.visualizar', 'nome' => 'Consignações: Visualizar', 'descricao' => 'Permite visualizar consignações'],
             ['slug' => 'consignacoes.gerenciar', 'nome' => 'Consignações: Gerenciar', 'descricao' => 'Permite alterar status e devolver itens'],
+            ['slug' => 'consignacoes.vencendo.todos', 'nome' => 'Consignações: Vencendo (Todos)', 'descricao' => 'Permite visualizar consignações vencendo de todos os usuários'],
 
         ];
 

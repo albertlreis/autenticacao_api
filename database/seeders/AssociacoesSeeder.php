@@ -46,10 +46,11 @@ class AssociacoesSeeder extends Seeder
                 str_starts_with($perm->slug, 'clientes.') ||
                 str_starts_with($perm->slug, 'produtos.') ||
                 str_starts_with($perm->slug, 'produto_variacoes.') ||
-                str_starts_with($perm->slug, 'pedidos.') ||
+                str_starts_with($perm->slug, 'pedidos.') &&
+                !in_array($perm->slug, ['pedidos.visualizar.todos', 'pedidos.estatisticas']) ||
                 str_starts_with($perm->slug, 'carrinhos.') ||
-                str_starts_with($perm->slug, 'consignacoes.') ||
-                $perm->slug === 'home.visualizar'
+                str_starts_with($perm->slug, 'consignacoes.') && $perm->slug !== 'consignacoes.vencendo.todos' ||
+                str_starts_with($perm->slug, 'home.')
             ) {
                 DB::table('acesso_perfil_permissao')->insert([
                     'id_perfil' => $vendedorPerfil->id,

@@ -87,6 +87,8 @@ class AuthController extends Controller
 
         $token = $usuario->createToken('auth_token')->plainTextToken;
 
+        $perfis = $usuario->perfis()->pluck('nome')->toArray();
+
         $permissoes = $usuario->perfis()
             ->with('permissoes')
             ->get()
@@ -111,6 +113,7 @@ class AuthController extends Controller
                 'nome'       => $usuario->nome,
                 'email'      => $usuario->email,
                 'ativo'      => $usuario->ativo,
+                'perfis'     => $perfis,
                 'permissoes' => $permissoes,
             ],
         ]);
