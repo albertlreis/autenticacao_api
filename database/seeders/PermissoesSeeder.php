@@ -112,6 +112,7 @@ class PermissoesSeeder extends Seeder
 
             // Consignações
             ['slug' => 'consignacoes.visualizar', 'nome' => 'Consignações: Visualizar', 'descricao' => 'Permite visualizar consignações'],
+            ['slug' => 'consignacoes.visualizar.todos', 'nome' => 'Consignações: Visualizar (Todos)', 'descricao' => 'Permite visualizar consignações de todos os usuários'],
             ['slug' => 'consignacoes.gerenciar', 'nome' => 'Consignações: Gerenciar', 'descricao' => 'Permite alterar status e devolver itens'],
             ['slug' => 'consignacoes.vencendo.todos', 'nome' => 'Consignações: Vencendo (Todos)', 'descricao' => 'Permite visualizar consignações vencendo de todos os usuários'],
 
