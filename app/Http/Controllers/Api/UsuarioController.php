@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AcessoUsuario;
 use App\Models\AcessoPerfil;
+use App\Models\Usuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -189,4 +190,18 @@ class UsuarioController extends Controller
             'usuario' => $usuario->load('perfis')
         ]);
     }
+
+    public function listarVendedores(): JsonResponse
+    {
+        $vendedores = AcessoUsuario::whereHas('perfis', function ($query) {
+            $query->where('nome', 'Vendedor');
+        })
+            ->where('ativo', true)
+            ->select('id', 'nome')
+            ->orderBy('nome')
+            ->get();
+
+        return response()->json($vendedores);
+    }
+
 }

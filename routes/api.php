@@ -36,8 +36,9 @@ Route::prefix('v1')->group(function () {
         Route::middleware('cache.permissoes')->group(function () {
 
             // CRUD de usuários
+            Route::get('/usuarios/vendedores', [UsuarioController::class, 'listarVendedores']);
             Route::apiResource('usuarios', UsuarioController::class);
-
+            
             // CRUD de perfis
             Route::apiResource('perfis', PerfilController::class);
 
