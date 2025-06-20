@@ -16,6 +16,7 @@ class PerfilUsuarioSeeder extends Seeder
         DB::table('acesso_perfis')->insertOrIgnore([
             ['nome' => PerfilEnum::ADMINISTRADOR->value, 'descricao' => 'Acesso total ao sistema','created_at' => $now, 'updated_at' => $now],
             ['nome' => PerfilEnum::VENDEDOR->value, 'descricao' => 'Acesso comercial restrito','created_at' => $now, 'updated_at' => $now],
+            ['nome' => PerfilEnum::DESENVOLVEDOR->value, 'descricao' => 'Acesso técnico irrestrito','created_at' => $now, 'updated_at' => $now],
         ]);
     }
 }

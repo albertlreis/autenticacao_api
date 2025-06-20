@@ -15,11 +15,16 @@ class AssociacoesSeeder extends Seeder
 
         $adminPerfil = DB::table('acesso_perfis')->where('nome', PerfilEnum::ADMINISTRADOR->value)->first();
         $vendedorPerfil = DB::table('acesso_perfis')->where('nome', PerfilEnum::VENDEDOR->value)->first();
+        $devPerfil = DB::table('acesso_perfis')->where('nome', PerfilEnum::DESENVOLVEDOR->value)->first();
 
         $usuarios = DB::table('acesso_usuarios')->get();
 
         foreach ($usuarios as $usuario) {
-            $perfil = str_contains($usuario->email, 'admin') ? $adminPerfil : $vendedorPerfil;
+            $perfil = match (true) {
+                str_contains($usuario->email, 'dev')   => $devPerfil,
+                str_contains($usuario->email, 'admin') => $adminPerfil,
+                default                                => $vendedorPerfil,
+            };
 
             DB::table('acesso_usuario_perfil')->insert([
                 'id_usuario' => $usuario->id,
@@ -33,15 +38,34 @@ class AssociacoesSeeder extends Seeder
         $todasPermissoes = DB::table('acesso_permissoes')->get();
 
         foreach ($todasPermissoes as $perm) {
-            // Administrador recebe todas as permissões
             DB::table('acesso_perfil_permissao')->insert([
-                'id_perfil' => $adminPerfil->id,
+                'id_perfil' => $devPerfil->id,
                 'id_permissao' => $perm->id,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
 
-            // Vendedor recebe apenas permissões comerciais
+            if (!in_array($perm->slug, [
+                'monitoramento.visualizar',
+                'perfis.visualizar',
+                'perfis.criar',
+                'perfis.editar',
+                'perfis.excluir',
+                'perfis.atribuir_permissao',
+                'perfis.remover_permissao',
+                'permissoes.visualizar',
+                'permissoes.criar',
+                'permissoes.editar',
+                'permissoes.excluir',
+            ])) {
+                DB::table('acesso_perfil_permissao')->insert([
+                    'id_perfil' => $adminPerfil->id,
+                    'id_permissao' => $perm->id,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+
             if (
                 str_starts_with($perm->slug, 'clientes.') ||
                 str_starts_with($perm->slug, 'produtos.') ||

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\MonitoramentoController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UsuarioController;
@@ -50,6 +51,9 @@ Route::prefix('v1')->group(function () {
             // Associação de permissões a perfis
             Route::post('/perfis/{perfil}/permissoes', [PerfilController::class, 'assignPermissao']);
             Route::delete('/perfis/{perfil}/permissoes/{permissao}', [PerfilController::class, 'removePermissao']);
+
+            Route::get('/monitoramento/cache', [MonitoramentoController::class, 'index']);
+
         });
     });
 });

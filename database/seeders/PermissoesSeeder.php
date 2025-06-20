@@ -8,7 +8,7 @@ use Carbon\Carbon;
 
 class PermissoesSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
         $now = Carbon::now();
 
@@ -20,8 +20,8 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'home.modais', 'nome' => 'Home: Modais', 'descricao' => 'Permite acessar os modais de KPIs e estoque crítico'],
 
             //Dashboard
-            ['slug' => 'dashboard.admin', 'nome' => 'Dashborad: Administrador', 'descricao' => 'Permite acessar o dashboard de administração'],
-            ['slug' => 'dashboard.vendedor', 'nome' => 'Dashborad: Vendedor', 'descricao' => 'Permite acessar o dashboard de vendedores'],
+            ['slug' => 'dashboard.admin', 'nome' => 'Dashboard: Administrador', 'descricao' => 'Permite acessar o dashboard de administração'],
+            ['slug' => 'dashboard.vendedor', 'nome' => 'Dashboard: Vendedor', 'descricao' => 'Permite acessar o dashboard de vendedores'],
 
             // Usuários
             ['slug' => 'usuarios.visualizar', 'nome' => 'Usuários: Visualizar', 'descricao' => 'Permite visualizar usuários'],
@@ -116,17 +116,20 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'consignacoes.gerenciar', 'nome' => 'Consignações: Gerenciar', 'descricao' => 'Permite alterar status e devolver itens'],
             ['slug' => 'consignacoes.vencendo.todos', 'nome' => 'Consignações: Vencendo (Todos)', 'descricao' => 'Permite visualizar consignações vencendo de todos os usuários'],
 
-        ];
+            // Métricas
+            ['slug' => 'monitoramento.visualizar', 'nome' => 'Monitoramento: Visualizar', 'descricao' => 'Permite visualizar métricas do sistema.'],
 
-        foreach ($permissoes as &$p) {
-            $p['created_at'] = $now;
-            $p['updated_at'] = $now;
-        }
+        ];
 
         foreach ($permissoes as $p) {
             DB::table('acesso_permissoes')->updateOrInsert(
                 ['slug' => $p['slug']],
-                array_merge($p, ['created_at' => $now, 'updated_at' => $now])
+                [
+                    'nome' => $p['nome'],
+                    'descricao' => $p['descricao'],
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]
             );
         }
     }
