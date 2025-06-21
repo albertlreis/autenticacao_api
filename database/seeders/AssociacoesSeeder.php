@@ -72,7 +72,7 @@ class AssociacoesSeeder extends Seeder
                 str_starts_with($perm->slug, 'produto_variacoes.') ||
                 str_starts_with($perm->slug, 'pedidos.') &&
                 !in_array($perm->slug, ['pedidos.visualizar.todos', 'pedidos.estatisticas']) ||
-                str_starts_with($perm->slug, 'carrinhos.') ||
+                str_starts_with($perm->slug, 'carrinhos.') && $perm->slug !== 'carrinhos.visualizar.todos' ||
                 str_starts_with($perm->slug, 'consignacoes.') && $perm->slug !== 'consignacoes.vencendo.todos' ||
                 str_starts_with($perm->slug, 'home.')
             ) {

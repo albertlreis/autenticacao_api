@@ -108,6 +108,8 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'configuracoes.editar', 'nome' => 'Configurações: Editar', 'descricao' => 'Permite editar configurações do sistema'],
 
             // Carrinhos
+            ['slug' => 'carrinhos.visualizar.todos', 'nome' => 'Carrinhos: Visualizar', 'descricao' => 'Permite visualizar carrinhos de todos os usuários'],
+            ['slug' => 'carrinhos.visualizar', 'nome' => 'Carrinhos: Visualizar', 'descricao' => 'Permite visualizar carrinhos'],
             ['slug' => 'carrinhos.finalizar', 'nome' => 'Carrinhos: Finalizar', 'descricao' => 'Permite finalizar um carrinho'],
 
             // Consignações
