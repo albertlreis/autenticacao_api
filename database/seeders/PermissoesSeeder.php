@@ -59,6 +59,7 @@ class PermissoesSeeder extends Seeder
 
             // Produtos
             ['slug' => 'produtos.visualizar', 'nome' => 'Produtos: Visualizar', 'descricao' => 'Permite visualizar produtos'],
+            ['slug' => 'produtos.gerenciar', 'nome' => 'Produtos: Gerenciar', 'descricao' => 'Permite gerenciar produtos'],
             ['slug' => 'produtos.criar', 'nome' => 'Produtos: Criar', 'descricao' => 'Permite cadastrar novos produtos'],
             ['slug' => 'produtos.editar', 'nome' => 'Produtos: Editar', 'descricao' => 'Permite editar produtos'],
             ['slug' => 'produtos.excluir', 'nome' => 'Produtos: Excluir', 'descricao' => 'Permite excluir produtos'],
