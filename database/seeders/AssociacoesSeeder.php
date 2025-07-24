@@ -68,12 +68,33 @@ class AssociacoesSeeder extends Seeder
 
             if (
                 str_starts_with($perm->slug, 'clientes.') ||
-                str_starts_with($perm->slug, 'produtos.') ||
+                (
+                    str_starts_with($perm->slug, 'produtos.') &&
+                    !in_array($perm->slug, [
+                        'produtos.gerenciar',
+                        'produtos.criar',
+                        'produtos.editar',
+                        'produtos.excluir',
+                        'produtos.importar',
+                        'produtos.outlet.cadastrar',
+                        'produtos.outlet.editar',
+                        'produtos.outlet.excluir',
+                        'produtos.configurar_outlet'
+                    ])
+                ) ||
                 str_starts_with($perm->slug, 'produto_variacoes.') ||
-                str_starts_with($perm->slug, 'pedidos.') &&
-                !in_array($perm->slug, ['pedidos.visualizar.todos', 'pedidos.estatisticas']) ||
-                str_starts_with($perm->slug, 'carrinhos.') && $perm->slug !== 'carrinhos.visualizar.todos' ||
-                str_starts_with($perm->slug, 'consignacoes.') && $perm->slug !== 'consignacoes.vencendo.todos' ||
+                (
+                    str_starts_with($perm->slug, 'pedidos.') &&
+                    !in_array($perm->slug, ['pedidos.visualizar.todos', 'pedidos.estatisticas'])
+                ) ||
+                (
+                    str_starts_with($perm->slug, 'carrinhos.') &&
+                    $perm->slug !== 'carrinhos.visualizar.todos'
+                ) ||
+                (
+                    str_starts_with($perm->slug, 'consignacoes.') &&
+                    $perm->slug !== 'consignacoes.vencendo.todos'
+                ) ||
                 str_starts_with($perm->slug, 'home.')
             ) {
                 DB::table('acesso_perfil_permissao')->insert([

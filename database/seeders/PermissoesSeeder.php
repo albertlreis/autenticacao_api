@@ -65,9 +65,12 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'produtos.excluir', 'nome' => 'Produtos: Excluir', 'descricao' => 'Permite excluir produtos'],
             ['slug' => 'produtos.importar', 'nome' => 'Produtos: Importar XML', 'descricao' => 'Permite importar produtos via XML de nota fiscal'],
             ['slug' => 'produtos.catalogo', 'nome' => 'Produtos: Ver Catálogo', 'descricao' => 'Permite visualizar o catálogo de produtos'],
+
+            // Produtos - Outlet
             ['slug' => 'produtos.outlet', 'nome' => 'Produtos: Ver Outlet', 'descricao' => 'Permite acessar produtos em outlet'],
-            ['slug' => 'produtos.configurar_outlet', 'nome' => 'Produtos: Configurar Outlet', 'descricao' => 'Permite configurar os critérios do outlet'],
-            ['slug' => 'produtos.variacoes', 'nome' => 'Produtos: Gerenciar Variações', 'descricao' => 'Permite visualizar e editar variações de produtos'],
+            ['slug' => 'produtos.outlet.cadastrar', 'nome' => 'Outlet: Cadastrar', 'descricao' => 'Permite cadastrar produtos no outlet'],
+            ['slug' => 'produtos.outlet.editar', 'nome' => 'Outlet: Editar', 'descricao' => 'Permite editar dados de outlet de um produto'],
+            ['slug' => 'produtos.outlet.excluir', 'nome' => 'Outlet: Excluir', 'descricao' => 'Permite remover produtos do outlet'],
 
             // Produto Variações
             ['slug' => 'produto_variacoes.visualizar', 'nome' => 'Variações: Visualizar', 'descricao' => 'Permite visualizar variações de produto'],
