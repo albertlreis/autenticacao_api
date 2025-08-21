@@ -57,6 +57,18 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'categorias.editar', 'nome' => 'Categorias: Editar', 'descricao' => 'Permite editar categorias'],
             ['slug' => 'categorias.excluir', 'nome' => 'Categorias: Excluir', 'descricao' => 'Permite excluir categorias'],
 
+            // Fornecedores
+            ['slug' => 'fornecedores.visualizar', 'nome' => 'Fornecedores: Visualizar', 'descricao' => 'Permite visualizar fornecedores'],
+            ['slug' => 'fornecedores.criar', 'nome' => 'Fornecedores: Criar', 'descricao' => 'Permite cadastrar fornecedores'],
+            ['slug' => 'fornecedores.editar', 'nome' => 'Fornecedores: Editar', 'descricao' => 'Permite editar fornecedores'],
+            ['slug' => 'fornecedores.excluir', 'nome' => 'Fornecedores: Excluir', 'descricao' => 'Permite excluir fornecedores'],
+
+            // Parceiros
+            ['slug' => 'parceiros.visualizar', 'nome' => 'Parceiros: Visualizar', 'descricao' => 'Permite visualizar parceiros'],
+            ['slug' => 'parceiros.criar', 'nome' => 'Parceiros: Criar', 'descricao' => 'Permite cadastrar parceiros'],
+            ['slug' => 'parceiros.editar', 'nome' => 'Parceiros: Editar', 'descricao' => 'Permite editar parceiros'],
+            ['slug' => 'parceiros.excluir', 'nome' => 'Parceiros: Excluir', 'descricao' => 'Permite excluir parceiros'],
+
             // Produtos
             ['slug' => 'produtos.visualizar', 'nome' => 'Produtos: Visualizar', 'descricao' => 'Permite visualizar produtos'],
             ['slug' => 'produtos.gerenciar', 'nome' => 'Produtos: Gerenciar', 'descricao' => 'Permite gerenciar produtos'],
@@ -94,6 +106,12 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'pedidos.alterar_status', 'nome' => 'Pedidos: Alterar Status', 'descricao' => 'Permite alterar status de pedidos'],
             ['slug' => 'pedidos.cancelar_status', 'nome' => 'Pedidos: Cancelar Status', 'descricao' => 'Permite cancelar status críticos'],
 
+            // Pedidos Fábrica
+            ['slug' => 'pedidos_fabrica.visualizar', 'nome' => 'Pedidos Fábrica: Visualizar', 'descricao' => 'Permite visualizar pedidos de fábrica'],
+            ['slug' => 'pedidos_fabrica.criar', 'nome' => 'Pedidos Fábrica: Criar', 'descricao' => 'Permite criar pedidos de fábrica'],
+            ['slug' => 'pedidos_fabrica.editar', 'nome' => 'Pedidos Fábrica: Editar', 'descricao' => 'Permite editar pedidos de fábrica'],
+            ['slug' => 'pedidos_fabrica.excluir', 'nome' => 'Pedidos Fábrica: Excluir', 'descricao' => 'Permite excluir pedidos de fábrica'],
+
             // Estoque / Depósitos
             ['slug' => 'depositos.visualizar', 'nome' => 'Depósitos: Visualizar', 'descricao' => 'Permite visualizar depósitos'],
             ['slug' => 'depositos.criar', 'nome' => 'Depósitos: Criar', 'descricao' => 'Permite criar depósitos'],
@@ -125,6 +143,9 @@ class PermissoesSeeder extends Seeder
             // Métricas
             ['slug' => 'monitoramento.visualizar', 'nome' => 'Monitoramento: Visualizar', 'descricao' => 'Permite visualizar métricas do sistema.'],
 
+            // Assistências
+            ['slug' => 'assistencias.visualizar', 'nome' => 'Assistências: Visualizar', 'descricao' => 'Permite visualizar assistências.'],
+            ['slug' => 'assistencias.gerenciar', 'nome' => 'Assistências: Gerenciar', 'descricao' => 'Permite gerenciar assistências autorizadas.'],
         ];
 
         foreach ($permissoes as $p) {
