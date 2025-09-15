@@ -96,6 +96,8 @@ class AssociacoesSeeder extends Seeder
                     $perm->slug !== 'consignacoes.vencendo.todos'
                 ) ||
                 str_starts_with($perm->slug, 'home.')
+                ||
+                ($perm->slug === 'fornecedores.visualizar')
             ) {
                 DB::table('acesso_perfil_permissao')->insert([
                     'id_perfil' => $vendedorPerfil->id,
