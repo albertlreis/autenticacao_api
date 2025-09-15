@@ -117,8 +117,12 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'depositos.criar', 'nome' => 'Depósitos: Criar', 'descricao' => 'Permite criar depósitos'],
             ['slug' => 'depositos.editar', 'nome' => 'Depósitos: Editar', 'descricao' => 'Permite editar depósitos'],
             ['slug' => 'depositos.excluir', 'nome' => 'Depósitos: Excluir', 'descricao' => 'Permite excluir depósitos'],
+
             ['slug' => 'estoque.movimentacao', 'nome' => 'Estoque: Movimentação', 'descricao' => 'Permite registrar ou visualizar movimentações de estoque'],
             ['slug' => 'estoque.historico', 'nome' => 'Estoque: Histórico', 'descricao' => 'Permite visualizar histórico de movimentações'],
+            ['slug' => 'estoque.caixa', 'nome' => 'Estoque: Caixa (Leitor)', 'descricao' => 'Permite usar a tela de leitura por código de barras'],
+            ['slug' => 'estoque.transferir', 'nome' => 'Estoque: Transferir entre Depósitos', 'descricao' => 'Permite realizar transferências entre depósitos'],
+            ['slug' => 'estoque.logs', 'nome' => 'Estoque: Logs Detalhados', 'descricao' => 'Permite visualizar e gerar logs detalhados de operações'],
 
             // Relatórios
             ['slug' => 'relatorios.visualizar', 'nome' => 'Relatórios: Visualizar', 'descricao' => 'Permite visualizar relatórios'],
