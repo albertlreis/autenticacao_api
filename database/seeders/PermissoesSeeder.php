@@ -105,6 +105,7 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'pedidos.importar_pdf', 'nome' => 'Pedidos: Importar PDF', 'descricao' => 'Permite importar pedidos a partir de arquivos PDF'],
             ['slug' => 'pedidos.alterar_status', 'nome' => 'Pedidos: Alterar Status', 'descricao' => 'Permite alterar status de pedidos'],
             ['slug' => 'pedidos.cancelar_status', 'nome' => 'Pedidos: Cancelar Status', 'descricao' => 'Permite cancelar status críticos'],
+            ['slug' => 'pedidos.selecionar_vendedor', 'nome' => 'Pedidos: Selecionar Vendedor', 'descricao' => 'Permite selecionar vendedor do pedido'],
 
             // Pedidos Fábrica
             ['slug' => 'pedidos_fabrica.visualizar', 'nome' => 'Pedidos Fábrica: Visualizar', 'descricao' => 'Permite visualizar pedidos de fábrica'],
