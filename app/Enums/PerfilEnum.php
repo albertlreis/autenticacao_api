@@ -7,6 +7,9 @@ enum PerfilEnum: string
     case ADMINISTRADOR = 'Administrador';
     case VENDEDOR = 'Vendedor';
     case DESENVOLVEDOR = 'Desenvolvedor';
+    case FINANCEIRO = 'Financeiro';
+    case ESTOQUISTA = 'Estoquista';
+
 
     public function label(): string
     {
@@ -14,6 +17,8 @@ enum PerfilEnum: string
             self::ADMINISTRADOR => 'Administrador',
             self::VENDEDOR => 'Vendedor',
             self::DESENVOLVEDOR => 'Desenvolvedor',
+            self::FINANCEIRO => 'Financeiro',
+            self::ESTOQUISTA => 'Estoquista',
         };
     }
 

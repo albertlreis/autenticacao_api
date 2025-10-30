@@ -19,6 +19,9 @@ class UsuarioSeeder extends Seeder
             ['nome' => 'Vendedor 1', 'email' => 'vendedor1@teste.com', 'senha' => Hash::make('senha123'), 'ativo' => 1, 'created_at' => $now, 'updated_at' => $now],
             ['nome' => 'Vendedor 2', 'email' => 'vendedor2@teste.com', 'senha' => Hash::make('senha123'), 'ativo' => 1, 'created_at' => $now, 'updated_at' => $now],
             ['nome' => 'Vendedor 3', 'email' => 'vendedor3@teste.com', 'senha' => Hash::make('senha123'), 'ativo' => 1, 'created_at' => $now, 'updated_at' => $now],
+            ['nome' => 'Financeiro Operador', 'email' => 'financeiro@teste.com', 'senha' => Hash::make('senha123'), 'ativo' => 1, 'created_at' => $now, 'updated_at' => $now],
+            ['nome' => 'Estoquista',          'email' => 'estoquista@teste.com', 'senha' => Hash::make('senha123'), 'ativo' => 1, 'created_at' => $now, 'updated_at' => $now],
+
         ]);
     }
 }

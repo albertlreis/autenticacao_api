@@ -17,6 +17,9 @@ class PerfilUsuarioSeeder extends Seeder
             ['nome' => PerfilEnum::ADMINISTRADOR->value, 'descricao' => 'Acesso total ao sistema','created_at' => $now, 'updated_at' => $now],
             ['nome' => PerfilEnum::VENDEDOR->value, 'descricao' => 'Acesso comercial restrito','created_at' => $now, 'updated_at' => $now],
             ['nome' => PerfilEnum::DESENVOLVEDOR->value, 'descricao' => 'Acesso técnico irrestrito','created_at' => $now, 'updated_at' => $now],
+            ['nome' => PerfilEnum::FINANCEIRO->value, 'descricao' => 'Operação do módulo financeiro', 'created_at' => $now, 'updated_at' => $now],
+            ['nome' => PerfilEnum::ESTOQUISTA->value, 'descricao' => 'Operação do módulo de estoque', 'created_at' => $now, 'updated_at' => $now],
+
         ]);
     }
 }

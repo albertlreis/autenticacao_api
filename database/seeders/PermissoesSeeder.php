@@ -151,6 +151,20 @@ class PermissoesSeeder extends Seeder
             // Assistências
             ['slug' => 'assistencias.visualizar', 'nome' => 'Assistências: Visualizar', 'descricao' => 'Permite visualizar assistências.'],
             ['slug' => 'assistencias.gerenciar', 'nome' => 'Assistências: Gerenciar', 'descricao' => 'Permite gerenciar assistências autorizadas.'],
+
+            // Financeiro — Contas a Pagar
+            ['slug' => 'contas.pagar.view',            'nome' => 'Contas a Pagar: Visualizar',         'descricao' => 'Visualizar contas a pagar'],
+            ['slug' => 'contas.pagar.create',          'nome' => 'Contas a Pagar: Criar',              'descricao' => 'Criar contas a pagar'],
+            ['slug' => 'contas.pagar.update',          'nome' => 'Contas a Pagar: Editar',             'descricao' => 'Editar contas a pagar'],
+            ['slug' => 'contas.pagar.delete',          'nome' => 'Contas a Pagar: Excluir',            'descricao' => 'Excluir contas a pagar'],
+            ['slug' => 'contas.pagar.pagar',           'nome' => 'Contas a Pagar: Registrar Pagamento','descricao' => 'Registrar pagamentos'],
+            ['slug' => 'contas.pagar.estornar',        'nome' => 'Contas a Pagar: Estornar Pagamento', 'descricao' => 'Estornar pagamentos'],
+            ['slug' => 'contas.pagar.exportar_excel',  'nome' => 'Contas a Pagar: Exportar Excel',     'descricao' => 'Exportar listagem em Excel'],
+            ['slug' => 'contas.pagar.exportar_pdf',    'nome' => 'Contas a Pagar: Exportar PDF',       'descricao' => 'Exportar listagem em PDF'],
+
+            // Estoque — Operação (atalho; opcional manter só granularidade de estoque.* / depositos.*)
+            ['slug' => 'estoquista.operar',            'nome' => 'Estoquista: Operar',                 'descricao' => 'Acesso operacional ao estoque'],
+
         ];
 
         foreach ($permissoes as $p) {

@@ -16,21 +16,59 @@ class AssociacoesSeeder extends Seeder
         $adminPerfil = DB::table('acesso_perfis')->where('nome', PerfilEnum::ADMINISTRADOR->value)->first();
         $vendedorPerfil = DB::table('acesso_perfis')->where('nome', PerfilEnum::VENDEDOR->value)->first();
         $devPerfil = DB::table('acesso_perfis')->where('nome', PerfilEnum::DESENVOLVEDOR->value)->first();
+        $financeiroPerfil = DB::table('acesso_perfis')->where('nome', PerfilEnum::FINANCEIRO->value)->first();
+        $estoquistaPerfil = DB::table('acesso_perfis')->where('nome', PerfilEnum::ESTOQUISTA->value)->first();
 
         $usuarios = DB::table('acesso_usuarios')->get();
 
         foreach ($usuarios as $usuario) {
             $perfil = match (true) {
-                str_contains($usuario->email, 'dev')   => $devPerfil,
-                str_contains($usuario->email, 'admin') => $adminPerfil,
-                default                                => $vendedorPerfil,
+                str_contains($usuario->email, 'dev')        => $devPerfil,
+                str_contains($usuario->email, 'admin')      => $adminPerfil,
+                str_contains($usuario->email, 'financeiro') => $financeiroPerfil,
+                str_contains($usuario->email, 'estoquista')  => $estoquistaPerfil,
+                default                                      => $vendedorPerfil,
             };
 
             DB::table('acesso_usuario_perfil')->insert([
                 'id_usuario' => $usuario->id,
-                'id_perfil' => $perfil->id,
+                'id_perfil'  => $perfil->id,
                 'created_at' => $now,
                 'updated_at' => $now,
+            ]);
+        }
+
+        // Permissões do perfil Financeiro
+        $financeiroPerms = DB::table('acesso_permissoes')->whereIn('slug', [
+            'contas.pagar.view','contas.pagar.create','contas.pagar.update','contas.pagar.delete',
+            'contas.pagar.pagar','contas.pagar.estornar','contas.pagar.exportar_excel','contas.pagar.exportar_pdf',
+            'relatorios.visualizar','relatorios.exportar_excel','relatorios.exportar_pdf',
+            'home.visualizar','home.kpis'
+        ])->get();
+
+        foreach ($financeiroPerms as $perm) {
+            DB::table('acesso_perfil_permissao')->insert([
+                'id_perfil'    => $financeiroPerfil->id,
+                'id_permissao' => $perm->id,
+                'created_at'   => $now,
+                'updated_at'   => $now,
+            ]);
+        }
+
+        // Permissões do perfil Estoquista
+        $estoquistaPerms = DB::table('acesso_permissoes')->whereIn('slug', [
+            'depositos.visualizar','depositos.criar','depositos.editar',
+            'estoque.movimentacao','estoque.historico','estoque.caixa','estoque.transferir','estoque.logs',
+            'produtos.visualizar','produtos.importar',
+            'home.visualizar'
+        ])->get();
+
+        foreach ($estoquistaPerms as $perm) {
+            DB::table('acesso_perfil_permissao')->insert([
+                'id_perfil'    => $estoquistaPerfil->id,
+                'id_permissao' => $perm->id,
+                'created_at'   => $now,
+                'updated_at'   => $now,
             ]);
         }
 
