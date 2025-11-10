@@ -113,15 +113,16 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'pedidos_fabrica.editar', 'nome' => 'Pedidos Fábrica: Editar', 'descricao' => 'Permite editar pedidos de fábrica'],
             ['slug' => 'pedidos_fabrica.excluir', 'nome' => 'Pedidos Fábrica: Excluir', 'descricao' => 'Permite excluir pedidos de fábrica'],
 
-            // Estoque / Depósitos
+            // Depósitos
             ['slug' => 'depositos.visualizar', 'nome' => 'Depósitos: Visualizar', 'descricao' => 'Permite visualizar depósitos'],
             ['slug' => 'depositos.criar', 'nome' => 'Depósitos: Criar', 'descricao' => 'Permite criar depósitos'],
             ['slug' => 'depositos.editar', 'nome' => 'Depósitos: Editar', 'descricao' => 'Permite editar depósitos'],
             ['slug' => 'depositos.excluir', 'nome' => 'Depósitos: Excluir', 'descricao' => 'Permite excluir depósitos'],
 
+            //Estoque
             ['slug' => 'estoque.movimentacao', 'nome' => 'Estoque: Movimentação', 'descricao' => 'Permite registrar ou visualizar movimentações de estoque'],
+            ['slug' => 'estoque.movimentar', 'nome' => 'Estoque: Movimentar', 'descricao' => 'Permite realizar movimentações manuais (E, S, T, ou Leitor'],
             ['slug' => 'estoque.historico', 'nome' => 'Estoque: Histórico', 'descricao' => 'Permite visualizar histórico de movimentações'],
-            ['slug' => 'estoque.caixa', 'nome' => 'Estoque: Caixa (Leitor)', 'descricao' => 'Permite usar a tela de leitura por código de barras'],
             ['slug' => 'estoque.transferir', 'nome' => 'Estoque: Transferir entre Depósitos', 'descricao' => 'Permite realizar transferências entre depósitos'],
             ['slug' => 'estoque.logs', 'nome' => 'Estoque: Logs Detalhados', 'descricao' => 'Permite visualizar e gerar logs detalhados de operações'],
 
