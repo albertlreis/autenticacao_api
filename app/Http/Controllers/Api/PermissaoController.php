@@ -10,86 +10,55 @@ use Illuminate\Support\Facades\Validator;
 
 class PermissaoController extends Controller
 {
-    /**
-     * Exibe uma listagem de permissões.
-     */
     public function index(): JsonResponse
     {
-        $permissoes = AcessoPermissao::all();
-        return response()->json($permissoes);
+        return response()->json(AcessoPermissao::orderBy('slug')->get());
     }
 
-    /**
-     * Cria uma permissão.
-     */
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
+            'slug'      => 'required|string|max:100|unique:acesso_permissoes,slug',
             'nome'      => 'required|string|max:100',
             'descricao' => 'nullable|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
+        if ($validator->fails()) return response()->json($validator->errors(), 422);
 
-        $permissao = AcessoPermissao::create($request->only('nome', 'descricao'));
-
+        $permissao = AcessoPermissao::create($request->only('slug', 'nome', 'descricao'));
         return response()->json($permissao, 201);
     }
 
-    /**
-     * Exibe uma permissão específica.
-     */
     public function show($id): JsonResponse
     {
         $permissao = AcessoPermissao::find($id);
-
-        if (!$permissao) {
-            return response()->json(['message' => 'Permissão não encontrada'], 404);
-        }
-
+        if (!$permissao) return response()->json(['message' => 'Permissão não encontrada'], 404);
         return response()->json($permissao);
     }
 
-    /**
-     * Atualiza uma permissão existente.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $permissao = AcessoPermissao::find($id);
-
-        if (!$permissao) {
-            return response()->json(['message' => 'Permissão não encontrada'], 404);
-        }
+        if (!$permissao) return response()->json(['message' => 'Permissão não encontrada'], 404);
 
         $validator = Validator::make($request->all(), [
+            'slug'      => 'sometimes|required|string|max:100|unique:acesso_permissoes,slug,' . $permissao->id,
             'nome'      => 'sometimes|required|string|max:100',
             'descricao' => 'nullable|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
-        }
+        if ($validator->fails()) return response()->json($validator->errors(), 422);
 
-        $permissao->update($request->only('nome', 'descricao'));
-
+        $permissao->update($request->only('slug', 'nome', 'descricao'));
         return response()->json($permissao);
     }
 
-    /**
-     * Remove uma permissão.
-     */
     public function destroy($id): JsonResponse
     {
         $permissao = AcessoPermissao::find($id);
-
-        if (!$permissao) {
-            return response()->json(['message' => 'Permissão não encontrada'], 404);
-        }
+        if (!$permissao) return response()->json(['message' => 'Permissão não encontrada'], 404);
 
         $permissao->delete();
-
         return response()->json(['message' => 'Permissão removida com sucesso']);
     }
 }

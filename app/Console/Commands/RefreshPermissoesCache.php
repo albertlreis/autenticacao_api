@@ -2,59 +2,45 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use App\Models\AcessoUsuario;
+use App\Services\PermissoesCacheService;
+use Illuminate\Console\Command;
 
 class RefreshPermissoesCache extends Command
 {
     protected $signature = 'permissao:refresh-cache {usuarioId?}';
-    protected $description = 'Limpa e reconstrói o cache de permissões para um usuário ou para todos os usuários.';
+    protected $description = 'Limpa e reconstrói o cache de permissões para um usuário ou para todos.';
+
+    public function __construct(private readonly PermissoesCacheService $cache)
+    {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
         $usuarioId = $this->argument('usuarioId');
 
         if ($usuarioId) {
-            Cache::forget('permissoes_usuario_' . $usuarioId);
-
-            $usuario = AcessoUsuario::with('perfis.permissoes')->find($usuarioId);
-
+            $usuario = AcessoUsuario::find((int) $usuarioId);
             if (!$usuario) {
                 $this->warn("Usuário ID {$usuarioId} não encontrado.");
                 return self::FAILURE;
             }
 
-            $permissoes = $usuario->perfis
-                ->flatMap(fn($perfil) => $perfil->permissoes)
-                ->pluck('slug')
-                ->unique()
-                ->values()
-                ->toArray();
+            $this->cache->forget((int) $usuario->id);
+            $this->cache->get($usuario);
 
-            Cache::put('permissoes_usuario_' . $usuario->id, $permissoes, now()->addHours(6));
-            $this->info("🔄 Cache de permissões atualizado para o usuário ID {$usuarioId}.");
+            $this->info("🔄 Cache atualizado para o usuário ID {$usuario->id}.");
             return self::SUCCESS;
         }
 
-        $usuarios = AcessoUsuario::with('perfis.permissoes')->get();
-        $total = 0;
-
-        foreach ($usuarios as $usuario) {
-            Cache::forget('permissoes_usuario_' . $usuario->id);
-
-            $permissoes = $usuario->perfis
-                ->flatMap(fn($perfil) => $perfil->permissoes)
-                ->pluck('slug')
-                ->unique()
-                ->values()
-                ->toArray();
-
-            Cache::put('permissoes_usuario_' . $usuario->id, $permissoes, now()->addHours(6));
-            $total++;
+        $usuarios = AcessoUsuario::all();
+        foreach ($usuarios as $u) {
+            $this->cache->forget((int) $u->id);
+            $this->cache->get($u);
         }
 
-        $this->info("🔄 Cache de permissões limpo e reconstruído para {$total} usuário(s).");
+        $this->info("🔄 Cache atualizado para {$usuarios->count()} usuário(s).");
         return self::SUCCESS;
     }
 }

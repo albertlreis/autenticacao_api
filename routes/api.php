@@ -1,59 +1,85 @@
 <?php
 
-use App\Http\Controllers\MonitoramentoController;
 use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UsuarioController;
 use App\Http\Controllers\Api\PerfilController;
 use App\Http\Controllers\Api\PermissaoController;
+use App\Http\Controllers\MonitoramentoController;
 
 Route::prefix('v1')->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Rotas Públicas
-    |--------------------------------------------------------------------------
-    */
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    /* ============================================================
+     * PÚBLICO / AUTH
+     * ============================================================ */
+    Route::prefix('auth')->group(function () {
+        Route::post('register', [AuthController::class, 'register']);
+        Route::post('login', [AuthController::class, 'login']);
+    });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Rotas Protegidas por Autenticação (Sanctum)
-    |--------------------------------------------------------------------------
-    */
+    /* ============================================================
+     * PROTEGIDO (SANCTUM)
+     * ============================================================ */
     Route::middleware('auth:sanctum')->group(function () {
 
-        // Rotas básicas que não exigem cache de permissões
-        Route::get('/me', [AuthController::class, 'me']);
-        Route::post('/logout', [AuthController::class, 'logout']);
+        // Sessão do usuário autenticado (não depende de cache de permissões)
+        Route::prefix('auth')->group(function () {
+            Route::get('me', [AuthController::class, 'me']);
+            Route::post('logout', [AuthController::class, 'logout']);
+        });
 
-        /*
-        |--------------------------------------------------------------------------
-        | Rotas que Exigem Permissões em Cache
-        |--------------------------------------------------------------------------
-        */
+        /* ============================================================
+         * ROTAS COM PERMISSÕES EM CACHE
+         * ============================================================ */
         Route::middleware('cache.permissoes')->group(function () {
 
-            // CRUD de usuários
-            Route::get('/usuarios/vendedores', [UsuarioController::class, 'listarVendedores']);
-            Route::apiResource('usuarios', UsuarioController::class);
+            // =========================
+            // USUÁRIOS
+            // =========================
+            Route::get('usuarios/opcoes/vendedores', [UsuarioController::class, 'listarVendedores']);
 
-            // CRUD de perfis
-            Route::apiResource('perfis', PerfilController::class);
+            Route::apiResource('usuarios', UsuarioController::class)
+                ->parameters(['usuarios' => 'usuario'])
+                ->whereNumber('usuario')
+                ->except(['create', 'edit']);
 
-            // CRUD de permissões
-            Route::apiResource('permissoes', PermissaoController::class);
+            // associação usuário <-> perfis
+            Route::post('usuarios/{usuario}/perfis', [UsuarioController::class, 'assignPerfil'])
+                ->whereNumber('usuario');
 
-            // Associação de perfis a usuários
-            Route::post('/usuarios/{usuario}/perfis', [UsuarioController::class, 'assignPerfil']);
-            Route::delete('/usuarios/{usuario}/perfis/{perfil}', [UsuarioController::class, 'removePerfil']);
+            Route::delete('usuarios/{usuario}/perfis/{perfil}', [UsuarioController::class, 'removePerfil'])
+                ->whereNumber(['usuario', 'perfil']);
 
-            // Associação de permissões a perfis
-            Route::post('/perfis/{perfil}/permissoes', [PerfilController::class, 'assignPermissao']);
-            Route::delete('/perfis/{perfil}/permissoes/{permissao}', [PerfilController::class, 'removePermissao']);
+            // =========================
+            // PERFIS
+            // =========================
+            Route::apiResource('perfis', PerfilController::class)
+                ->parameters(['perfis' => 'perfil'])
+                ->whereNumber('perfil')
+                ->except(['create', 'edit']);
 
-            Route::get('/monitoramento/cache', [MonitoramentoController::class, 'index']);
+            // associação perfil <-> permissões
+            Route::post('perfis/{perfil}/permissoes', [PerfilController::class, 'assignPermissao'])
+                ->whereNumber('perfil');
+
+            Route::delete('perfis/{perfil}/permissoes/{permissao}', [PerfilController::class, 'removePermissao'])
+                ->whereNumber(['perfil', 'permissao']);
+
+            // =========================
+            // PERMISSÕES
+            // =========================
+            Route::apiResource('permissoes', PermissaoController::class)
+                ->parameters(['permissoes' => 'permissao'])
+                ->whereNumber('permissao')
+                ->except(['create', 'edit']);
+
+            // =========================
+            // MONITORAMENTO
+            // =========================
+            Route::prefix('monitoramento')->group(function () {
+                Route::get('cache', [MonitoramentoController::class, 'index']);
+            });
 
         });
     });

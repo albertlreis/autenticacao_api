@@ -6,22 +6,30 @@ use Illuminate\Support\Facades\Schema;
 
 class CreateAcessoPerfilPermissaoTable extends Migration
 {
-    public function up()
+    public function up(): void
     {
         Schema::create('acesso_perfil_permissao', function (Blueprint $table) {
-            $table->increments('id');
-            $table->unsignedInteger('id_perfil');
-            $table->unsignedInteger('id_permissao');
+            $table->id();
+
+            $table->foreignId('id_perfil')
+                ->constrained('acesso_perfis')
+                ->cascadeOnDelete()
+                ->restrictOnUpdate();
+
+            $table->foreignId('id_permissao')
+                ->constrained('acesso_permissoes')
+                ->cascadeOnDelete()
+                ->restrictOnUpdate();
+
             $table->timestamps();
 
-            $table->foreign('id_perfil')->references('id')->on('acesso_perfis')->onDelete('cascade');
-            $table->foreign('id_permissao')->references('id')->on('acesso_permissoes')->onDelete('cascade');
-
             $table->unique(['id_perfil', 'id_permissao'], 'uq_perfil_permissao');
+            $table->index('id_perfil');
+            $table->index('id_permissao');
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('acesso_perfil_permissao');
     }

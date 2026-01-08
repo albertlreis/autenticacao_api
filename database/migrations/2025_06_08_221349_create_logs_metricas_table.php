@@ -10,12 +10,22 @@ return new class extends Migration
     {
         Schema::create('logs_metricas', function (Blueprint $table) {
             $table->id();
-            $table->string('chave');
-            $table->string('origem'); // dashboard_resumo, estatisticas, estoque
-            $table->string('status'); // cache_hit, cache_miss
-            $table->unsignedBigInteger('usuario_id')->nullable();
-            $table->float('duracao_ms');
+
+            $table->string('chave', 191);
+            $table->string('origem', 191);  // dashboard_resumo, estatisticas, estoque
+            $table->string('status', 191);  // cache_hit, cache_miss
+
+            $table->foreignId('usuario_id')->nullable()
+                ->constrained('acesso_usuarios')
+                ->nullOnDelete()
+                ->restrictOnUpdate();
+
+            $table->decimal('duracao_ms', 10, 2);
+
             $table->timestamp('criado_em')->useCurrent();
+
+            $table->index(['origem', 'status', 'criado_em'], 'ix_logs_metricas_o_s_t');
+            $table->index('criado_em', 'ix_logs_metricas_criado_em');
         });
     }
 

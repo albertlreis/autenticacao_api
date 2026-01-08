@@ -163,8 +163,39 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'contas.pagar.exportar_excel',  'nome' => 'Contas a Pagar: Exportar Excel',     'descricao' => 'Exportar listagem em Excel'],
             ['slug' => 'contas.pagar.exportar_pdf',    'nome' => 'Contas a Pagar: Exportar PDF',       'descricao' => 'Exportar listagem em PDF'],
 
+            // Financeiro — Contas a Receber
+            ['slug' => 'contas.receber.view',            'nome' => 'Contas a Receber: Visualizar',          'descricao' => 'Visualizar contas a receber'],
+            ['slug' => 'contas.receber.create',          'nome' => 'Contas a Receber: Criar',               'descricao' => 'Criar contas a receber'],
+            ['slug' => 'contas.receber.update',          'nome' => 'Contas a Receber: Editar',              'descricao' => 'Editar contas a receber'],
+            ['slug' => 'contas.receber.delete',          'nome' => 'Contas a Receber: Excluir',             'descricao' => 'Excluir contas a receber'],
+            ['slug' => 'contas.receber.receber',         'nome' => 'Contas a Receber: Registrar Recebimento','descricao' => 'Registrar recebimentos'],
+            ['slug' => 'contas.receber.estornar',        'nome' => 'Contas a Receber: Estornar Recebimento','descricao' => 'Estornar recebimentos'],
+            ['slug' => 'contas.receber.exportar_excel',  'nome' => 'Contas a Receber: Exportar Excel',      'descricao' => 'Exportar listagem em Excel'],
+            ['slug' => 'contas.receber.exportar_pdf',    'nome' => 'Contas a Receber: Exportar PDF',        'descricao' => 'Exportar listagem em PDF'],
+
+            // Financeiro: Lançamentos
+            ['slug' => 'financeiro.lancamentos.visualizar', 'nome' => 'Financeiro: Lançamentos - Visualizar', 'descricao' => 'Permite listar e visualizar lançamentos'],
+            ['slug' => 'financeiro.lancamentos.criar',      'nome' => 'Financeiro: Lançamentos - Criar',      'descricao' => 'Permite criar lançamentos'],
+            ['slug' => 'financeiro.lancamentos.editar',     'nome' => 'Financeiro: Lançamentos - Editar',     'descricao' => 'Permite editar lançamentos'],
+            ['slug' => 'financeiro.lancamentos.excluir',    'nome' => 'Financeiro: Lançamentos - Excluir',    'descricao' => 'Permite excluir lançamentos'],
+            ['slug' => 'financeiro.lancamentos.exportar',   'nome' => 'Financeiro: Lançamentos - Exportar',   'descricao' => 'Permite exportar lançamentos'],
+            ['slug' => 'financeiro.dashboard.visualizar',   'nome' => 'Financeiro: Dashboard - Visualizar',   'descricao' => 'Permite visualizar dashboard financeiro'],
+
+            // Despesas Recorrentes
+            ['slug' => 'despesas_recorrentes.visualizar', 'nome' => 'Despesas Recorrentes: Visualizar', 'descricao' => 'Permite listar e visualizar despesas recorrentes'],
+            ['slug' => 'despesas_recorrentes.criar', 'nome' => 'Despesas Recorrentes: Criar', 'descricao' => 'Permite cadastrar despesas recorrentes'],
+            ['slug' => 'despesas_recorrentes.editar', 'nome' => 'Despesas Recorrentes: Editar', 'descricao' => 'Permite editar despesas recorrentes'],
+            ['slug' => 'despesas_recorrentes.executar', 'nome' => 'Despesas Recorrentes: Executar', 'descricao' => 'Permite executar manualmente a geração de contas a pagar'],
+            ['slug' => 'despesas_recorrentes.cancelar', 'nome' => 'Despesas Recorrentes: Cancelar', 'descricao' => 'Permite cancelar despesas recorrentes'],
+
             // Estoque — Operação (atalho; opcional manter só granularidade de estoque.* / depositos.*)
             ['slug' => 'estoquista.operar',            'nome' => 'Estoquista: Operar',                 'descricao' => 'Acesso operacional ao estoque'],
+
+            // Comunicação (Painel)
+            ['slug' => 'comunicacao.visualizar',       'nome' => 'Comunicação: Visualizar',         'descricao' => 'Permite acessar o painel de comunicação (dashboard, requests e mensagens)'],
+            ['slug' => 'comunicacao.templates',        'nome' => 'Comunicação: Templates',          'descricao' => 'Permite criar/editar templates e gerar preview'],
+            ['slug' => 'comunicacao.requests.cancelar','nome' => 'Comunicação: Cancelar Request',   'descricao' => 'Permite cancelar requests pendentes'],
+            ['slug' => 'comunicacao.messages.retry',   'nome' => 'Comunicação: Retry Mensagem',     'descricao' => 'Permite reprocessar mensagens com falha'],
 
         ];
 

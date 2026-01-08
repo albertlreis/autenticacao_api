@@ -6,19 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 class CreateAcessoPermissoesTable extends Migration
 {
-    public function up()
+    public function up(): void
     {
         Schema::create('acesso_permissoes', function (Blueprint $table) {
-            $table->increments('id');
+            $table->id();
             $table->string('slug', 100)->unique(); // Ex: 'clientes.visualizar'
             $table->string('nome', 100);
             $table->text('descricao')->nullable();
-            $table->timestamp('created_at')->nullable();
-            $table->timestamp('updated_at')->nullable();
+            $table->timestamps();
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('acesso_permissoes');
     }

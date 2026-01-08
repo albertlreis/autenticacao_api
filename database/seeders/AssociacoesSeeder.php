@@ -42,6 +42,8 @@ class AssociacoesSeeder extends Seeder
         $financeiroPerms = DB::table('acesso_permissoes')->whereIn('slug', [
             'contas.pagar.view','contas.pagar.create','contas.pagar.update','contas.pagar.delete',
             'contas.pagar.pagar','contas.pagar.estornar','contas.pagar.exportar_excel','contas.pagar.exportar_pdf',
+            'contas.receber.view','contas.receber.create','contas.receber.update','contas.receber.delete',
+            'contas.receber.receber','contas.receber.estornar','contas.receber.exportar_excel','contas.receber.exportar_pdf',
             'relatorios.visualizar','relatorios.exportar_excel','relatorios.exportar_pdf',
             'home.visualizar','home.kpis'
         ])->get();

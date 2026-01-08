@@ -2,18 +2,17 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-
-/*
-|--------------------------------------------------------------------------
-| Console Routes
-|--------------------------------------------------------------------------
-|
-| This file is where you may define all of your Closure based console
-| commands. Each Closure is bound to a command instance allowing a
-| simple approach to interacting with each command's IO methods.
-|
-*/
+use Illuminate\Console\Scheduling\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+// Agenda tarefas após o app bootar (compatível com várias versões)
+app()->booted(function () {
+    /** @var Schedule $schedule */
+    $schedule = app(Schedule::class);
+
+    // Limpa tokens expirados do Sanctum diariamente
+    $schedule->command('sanctum:prune-expired --hours=24')->daily();
+});

@@ -5,6 +5,7 @@ namespace App\Http;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\CachePermissoes;
 use App\Http\Middleware\EncryptCookies;
+use App\Http\Middleware\EnsureUsuarioAtivo;
 use App\Http\Middleware\PreventRequestsDuringMaintenance;
 use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\TrimStrings;
@@ -85,5 +86,6 @@ class Kernel extends HttpKernel
         'throttle' => ThrottleRequests::class,
         'verified' => EnsureEmailIsVerified::class,
         'cache.permissoes' => CachePermissoes::class,
+        'usuario.ativo' => EnsureUsuarioAtivo::class,
     ];
 }
