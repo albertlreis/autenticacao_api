@@ -37,8 +37,6 @@ Route::prefix('v1')->group(function () {
             // =========================
             // USUÁRIOS
             // =========================
-            Route::get('usuarios/opcoes/vendedores', [UsuarioController::class, 'listarVendedores']);
-
             Route::apiResource('usuarios', UsuarioController::class)
                 ->parameters(['usuarios' => 'usuario'])
                 ->whereNumber('usuario')

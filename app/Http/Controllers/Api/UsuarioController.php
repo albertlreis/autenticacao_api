@@ -3,24 +3,53 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UsuarioStoreRequest;
+use App\Http\Requests\UsuarioUpdateRequest;
+use App\Http\Resources\UsuarioResource;
 use App\Models\AcessoUsuario;
-use App\Services\PermissoesCacheService;
+use App\Services\UsuarioService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 
 class UsuarioController extends Controller
 {
-    public function __construct(private readonly PermissoesCacheService $permissoesCache) {}
+    public function __construct(
+        private readonly UsuarioService $service
+    ) {}
 
+    /**
+     * Lista usuários com filtros.
+     *
+     * Suporta dois modos:
+     * - modo padrão: retorna usuários com campos completos (resource), ideal para DataTable.
+     * - mode=options: retorna lista leve para combos (id/nome e opcionalmente email).
+     *
+     * Query params:
+     * - q: string (busca por nome/email)
+     * - ativo: bool
+     * - perfil_id: int (filtra usuários que possuam o perfil)
+     * - per_page: int (se informado, pagina)
+     * - paginate: bool (força paginação mesmo sem per_page)
+     * - mode: "default" | "options"
+     * - fields: string (somente no mode=options). ex: "id,nome" ou "id,nome,email"
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
     public function index(Request $request): JsonResponse
     {
         $q = trim((string) $request->query('q', ''));
         $ativo = $request->query('ativo', null);
         $perfilId = $request->query('perfil_id', null);
 
-        $query = AcessoUsuario::query()->with('perfis');
+        $mode = (string) $request->query('mode', 'default'); // default|options
+
+        $query = AcessoUsuario::query();
+
+        // Carrega perfis apenas no modo padrão (DataTable)
+        if ($mode !== 'options') {
+            $query->with('perfis');
+        }
 
         if ($q !== '') {
             $query->where(function ($qq) use ($q) {
@@ -37,112 +66,124 @@ class UsuarioController extends Controller
             $query->whereHas('perfis', fn ($p) => $p->where('acesso_perfis.id', (int) $perfilId));
         }
 
-        $perPage = (int) $request->query('per_page', 15);
+        // Ordenação
+        $query->orderBy('nome');
 
-        return response()->json(
-            $query->orderBy('nome')->paginate($perPage)
-        );
-    }
+        // MODE OPTIONS: payload leve p/ select
+        if ($mode === 'options') {
+            $fields = (string) $request->query('fields', 'id,nome');
+            $allowed = ['id', 'nome', 'email'];
+            $cols = array_values(array_intersect($allowed, array_map('trim', explode(',', $fields))));
 
-    public function store(Request $request): JsonResponse
-    {
-        $validator = Validator::make($request->all(), [
-            'nome'   => 'required|string|max:255',
-            'email'  => 'required|string|email|max:100|unique:acesso_usuarios',
-            'senha'  => 'required|string|min:8',
-            'ativo'  => 'sometimes|boolean',
-            'perfis' => 'sometimes|array',
-            'perfis.*' => 'integer|exists:acesso_perfis,id',
-        ]);
+            if (empty($cols)) $cols = ['id', 'nome'];
 
-        if ($validator->fails()) return response()->json($validator->errors(), 422);
+            $query->select($cols);
 
-        $usuario = AcessoUsuario::create([
-            'nome'  => $request->nome,
-            'email' => $request->email,
-            'senha' => Hash::make($request->senha),
-            'ativo' => $request->has('ativo') ? (bool) $request->ativo : true,
-            'senha_alterada_em' => now(),
-        ]);
+            // Em options, nunca pagina (normalmente é usado para autocomplete/select).
+            // Se quiser paginação, você pode permitir via paginate=1/per_page, mas geralmente não precisa.
+            $list = $query->get();
 
-        if ($request->has('perfis')) {
-            $usuario->perfis()->sync($request->perfis);
-            $usuario->load('perfis');
+            return response()->json($list);
         }
 
-        $this->permissoesCache->forget((int) $usuario->id);
+        // MODO PADRÃO (DataTable)
+        // Se o front não usa "lazy", retornar paginado por padrão pode esconder usuários.
+        // Então: só pagina se vier per_page (ou paginate=1).
+        $perPage = $request->query('per_page', null);
+        $paginate = $request->boolean('paginate', false) || ($perPage !== null && $perPage !== '');
 
-        return response()->json($usuario, 201);
-    }
-
-    public function show($id): JsonResponse
-    {
-        $usuario = AcessoUsuario::with('perfis')->find($id);
-        if (!$usuario) return response()->json(['message' => 'Usuário não encontrado'], 404);
-        return response()->json($usuario);
-    }
-
-    public function update(Request $request, $id): JsonResponse
-    {
-        $usuario = AcessoUsuario::find($id);
-        if (!$usuario) return response()->json(['message' => 'Usuário não encontrado'], 404);
-
-        $validator = Validator::make($request->all(), [
-            'nome'   => 'sometimes|required|string|max:255',
-            'email'  => 'sometimes|required|string|email|max:100|unique:acesso_usuarios,email,' . $usuario->id,
-            'ativo'  => 'sometimes|boolean',
-            'perfis' => 'sometimes|array',
-            'perfis.*' => 'integer|exists:acesso_perfis,id',
-            'senha'  => 'sometimes|nullable|string|min:8',
-        ]);
-
-        if ($validator->fails()) return response()->json($validator->errors(), 422);
-
-        if ($request->has('nome')) $usuario->nome = $request->nome;
-        if ($request->has('email')) $usuario->email = $request->email;
-        if ($request->has('ativo')) $usuario->ativo = (bool) $request->ativo;
-
-        if ($request->filled('senha')) {
-            $usuario->senha = Hash::make($request->senha);
-            $usuario->senha_alterada_em = now();
+        if ($paginate) {
+            $perPage = (int) ($perPage ?: 15);
+            $paginator = $query->paginate($perPage);
+            return response()->json(UsuarioResource::collection($paginator));
         }
 
-        $usuario->save();
-
-        if ($request->has('perfis')) {
-            $usuario->perfis()->sync($request->perfis);
-            $usuario->load('perfis');
-        }
-
-        // Perfis mudaram => invalida cache de permissões
-        $this->permissoesCache->forget((int) $usuario->id);
-
-        return response()->json($usuario);
+        $list = $query->get();
+        return response()->json(UsuarioResource::collection($list));
     }
 
-    public function destroy($id): JsonResponse
+    /**
+     * Cria usuário.
+     *
+     * @param  UsuarioStoreRequest  $request
+     * @return JsonResponse
+     */
+    public function store(UsuarioStoreRequest $request): JsonResponse
     {
-        $usuario = AcessoUsuario::find($id);
-        if (!$usuario) return response()->json(['message' => 'Usuário não encontrado'], 404);
+        $usuario = $this->service->criar($request->validated());
+        return response()->json(new UsuarioResource($usuario), 201);
+    }
 
-        $this->permissoesCache->forget((int) $usuario->id);
+    /**
+     * Detalha um usuário.
+     *
+     * @param  AcessoUsuario  $usuario
+     * @return JsonResponse
+     */
+    public function show(AcessoUsuario $usuario): JsonResponse
+    {
+        $usuario->load('perfis');
+        return response()->json(new UsuarioResource($usuario));
+    }
 
-        $usuario->tokens()->delete(); // remove access tokens :contentReference[oaicite:9]{index=9}
-        $usuario->delete();
+    /**
+     * Atualiza um usuário.
+     *
+     * @param  UsuarioUpdateRequest  $request
+     * @param  AcessoUsuario  $usuario
+     * @return JsonResponse
+     */
+    public function update(UsuarioUpdateRequest $request, AcessoUsuario $usuario): JsonResponse
+    {
+        $usuario = $this->service->atualizar($usuario, $request->validated());
+        return response()->json(new UsuarioResource($usuario));
+    }
 
+    /**
+     * Remove um usuário.
+     *
+     * @param  AcessoUsuario  $usuario
+     * @return JsonResponse
+     */
+    public function destroy(AcessoUsuario $usuario): JsonResponse
+    {
+        $this->service->remover($usuario);
         return response()->json(['message' => 'Usuário removido com sucesso']);
     }
 
-    public function listarVendedores(): JsonResponse
+    /**
+     * Associa perfis ao usuário (adiciona sem remover os existentes).
+     *
+     * POST /usuarios/{usuario}/perfis
+     * Body: { "perfis": [1,2] }
+     *
+     * @param  Request  $request
+     * @param  AcessoUsuario  $usuario
+     * @return JsonResponse
+     */
+    public function assignPerfil(Request $request, AcessoUsuario $usuario): JsonResponse
     {
-        $vendedores = AcessoUsuario::whereHas('perfis', function ($query) {
-            $query->where('nome', 'Vendedor');
-        })
-            ->where('ativo', true)
-            ->select('id', 'nome')
-            ->orderBy('nome')
-            ->get();
+        $data = $request->validate([
+            'perfis' => ['required', 'array', 'min:1'],
+            'perfis.*' => ['integer', 'exists:acesso_perfis,id'],
+        ]);
 
-        return response()->json($vendedores);
+        $usuario = $this->service->adicionarPerfis($usuario, $data['perfis']);
+        return response()->json(new UsuarioResource($usuario));
+    }
+
+    /**
+     * Remove um perfil do usuário.
+     *
+     * DELETE /usuarios/{usuario}/perfis/{perfil}
+     *
+     * @param  AcessoUsuario  $usuario
+     * @param  int|string  $perfil
+     * @return JsonResponse
+     */
+    public function removePerfil(AcessoUsuario $usuario, $perfil): JsonResponse
+    {
+        $usuario = $this->service->removerPerfil($usuario, (int) $perfil);
+        return response()->json(new UsuarioResource($usuario));
     }
 }
