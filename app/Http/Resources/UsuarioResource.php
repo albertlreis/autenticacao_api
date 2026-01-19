@@ -23,7 +23,7 @@ class UsuarioResource extends JsonResource
      *   perfis?: array<int, array{id:int,nome:string,descricao:mixed}>
      * }
      */
-    public function toArray(Request $request): array
+    public function toArray($request): array
     {
         return [
             'id' => (int) $this->id,
