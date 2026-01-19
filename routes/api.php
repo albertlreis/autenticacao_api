@@ -13,10 +13,10 @@ Route::prefix('v1')->group(function () {
     /* ============================================================
      * PÚBLICO / AUTH
      * ============================================================ */
-//    Route::prefix('auth')->group(function () {
+    Route::prefix('auth')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
         Route::post('login', [AuthController::class, 'login']);
-//    });
+    });
 
     /* ============================================================
      * PROTEGIDO (SANCTUM)
