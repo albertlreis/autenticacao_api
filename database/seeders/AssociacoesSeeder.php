@@ -58,20 +58,46 @@ class AssociacoesSeeder extends Seeder
         }
 
         // Permissões do perfil Estoquista
-        $estoquistaPerms = DB::table('acesso_permissoes')->whereIn('slug', [
-            'depositos.visualizar','depositos.criar','depositos.editar',
-            'estoque.movimentacao','estoque.historico','estoque.caixa','estoque.transferir','estoque.logs',
-            'produtos.visualizar','produtos.importar',
-            'home.visualizar'
-        ])->get();
+        $estoquistaPrefixos = [
+            'pedidos.',
+            'pedidos_fabrica.',
+            'produtos.',
+            'produto_variacoes.',
+            'clientes.',
+            'categorias.',
+            'fornecedores.',
+            'parceiros.',
+            'estoque.',
+            'depositos.',
+            'relatorios.',
+            'carrinhos.',
+            'consignacoes.',
+            'assistencias.',
+        ];
+
+        $estoquistaPermsQuery = DB::table('acesso_permissoes')
+            ->where(function ($q) use ($estoquistaPrefixos) {
+                foreach ($estoquistaPrefixos as $prefix) {
+                    $q->orWhere('slug', 'like', $prefix . '%');
+                }
+            })
+            ->orWhereIn('slug', [
+                'home.visualizar',
+            ]);
+
+        $estoquistaPerms = $estoquistaPermsQuery->get();
 
         foreach ($estoquistaPerms as $perm) {
-            DB::table('acesso_perfil_permissao')->insert([
-                'id_perfil'    => $estoquistaPerfil->id,
-                'id_permissao' => $perm->id,
-                'created_at'   => $now,
-                'updated_at'   => $now,
-            ]);
+            DB::table('acesso_perfil_permissao')->updateOrInsert(
+                [
+                    'id_perfil'    => $estoquistaPerfil->id,
+                    'id_permissao' => $perm->id,
+                ],
+                [
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]
+            );
         }
 
         // Permissões
