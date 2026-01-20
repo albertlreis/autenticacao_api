@@ -8,7 +8,7 @@ return [
         'name'      => env('REFRESH_COOKIE_NAME', 'refresh_token'),
         'domain'    => env('REFRESH_COOKIE_DOMAIN') ?: null,
         'secure'    => (bool) env('REFRESH_COOKIE_SECURE', true),
-        'same_site' => env('REFRESH_COOKIE_SAMESITE', 'None'), // None|Lax|Strict
+        'same_site' => env('REFRESH_COOKIE_SAMESITE', 'None'),
         'path'      => '/',
     ],
 
