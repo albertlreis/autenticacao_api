@@ -7,14 +7,18 @@ use App\Http\Requests\UsuarioStoreRequest;
 use App\Http\Requests\UsuarioUpdateRequest;
 use App\Http\Resources\UsuarioResource;
 use App\Models\AcessoUsuario;
+use App\Services\PermissoesCacheService;
 use App\Services\UsuarioService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class UsuarioController extends Controller
 {
     public function __construct(
-        private readonly UsuarioService $service
+        private readonly UsuarioService $service,
+        private readonly PermissoesCacheService $permissoesCache
     ) {}
 
     /**
@@ -38,6 +42,8 @@ class UsuarioController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        if ($resp = $this->autorizar('usuarios.visualizar')) return $resp;
+
         $q = trim((string) $request->query('q', ''));
         $ativo = $request->query('ativo', null);
         $perfilId = $request->query('perfil_id', null);
@@ -110,8 +116,19 @@ class UsuarioController extends Controller
      */
     public function store(UsuarioStoreRequest $request): JsonResponse
     {
-        $usuario = $this->service->criar($request->validated());
-        return response()->json(new UsuarioResource($usuario), 201);
+        if ($resp = $this->autorizar('usuarios.criar')) return $resp;
+
+        try {
+            $usuario = $this->service->criar($request->validated());
+            return response()->json(new UsuarioResource($usuario), 201);
+        } catch (Throwable $e) {
+            Log::error('Falha ao criar usuario', [
+                'email' => $request->input('email'),
+                'nome' => $request->input('nome'),
+                'erro' => $e->getMessage(),
+            ]);
+            return response()->json(['message' => 'Falha ao criar usuario.'], 500);
+        }
     }
 
     /**
@@ -122,6 +139,8 @@ class UsuarioController extends Controller
      */
     public function show(AcessoUsuario $usuario): JsonResponse
     {
+        if ($resp = $this->autorizar('usuarios.visualizar')) return $resp;
+
         $usuario->load('perfis');
         return response()->json(new UsuarioResource($usuario));
     }
@@ -135,8 +154,18 @@ class UsuarioController extends Controller
      */
     public function update(UsuarioUpdateRequest $request, AcessoUsuario $usuario): JsonResponse
     {
-        $usuario = $this->service->atualizar($usuario, $request->validated());
-        return response()->json(new UsuarioResource($usuario));
+        if ($resp = $this->autorizar('usuarios.editar')) return $resp;
+
+        try {
+            $usuario = $this->service->atualizar($usuario, $request->validated());
+            return response()->json(new UsuarioResource($usuario));
+        } catch (Throwable $e) {
+            Log::error('Falha ao atualizar usuario', [
+                'usuario_id' => $usuario->id,
+                'erro' => $e->getMessage(),
+            ]);
+            return response()->json(['message' => 'Falha ao atualizar usuario.'], 500);
+        }
     }
 
     /**
@@ -147,6 +176,8 @@ class UsuarioController extends Controller
      */
     public function destroy(AcessoUsuario $usuario): JsonResponse
     {
+        if ($resp = $this->autorizar('usuarios.excluir')) return $resp;
+
         $this->service->remover($usuario);
         return response()->json(['message' => 'Usuário removido com sucesso']);
     }
@@ -163,6 +194,8 @@ class UsuarioController extends Controller
      */
     public function assignPerfil(Request $request, AcessoUsuario $usuario): JsonResponse
     {
+        if ($resp = $this->autorizar('usuarios.atribuir_perfil')) return $resp;
+
         $data = $request->validate([
             'perfis' => ['required', 'array', 'min:1'],
             'perfis.*' => ['integer', 'exists:acesso_perfis,id'],
@@ -183,7 +216,34 @@ class UsuarioController extends Controller
      */
     public function removePerfil(AcessoUsuario $usuario, $perfil): JsonResponse
     {
+        if ($resp = $this->autorizar('usuarios.remover_perfil')) return $resp;
+
         $usuario = $this->service->removerPerfil($usuario, (int) $perfil);
         return response()->json(new UsuarioResource($usuario));
+    }
+
+    private function autorizar(string $permissao): ?JsonResponse
+    {
+        /** @var AcessoUsuario|null $user */
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'UsuÃ¡rio nÃ£o autenticado.'], 401);
+        }
+
+        try {
+            $permissoes = $this->permissoesCache->get($user);
+        } catch (Throwable $e) {
+            Log::error('Falha ao carregar permissoes do usuario', [
+                'usuario_id' => $user->id,
+                'erro' => $e->getMessage(),
+            ]);
+            $permissoes = [];
+        }
+
+        if (!in_array($permissao, $permissoes, true)) {
+            return response()->json(['message' => 'Sem permissÃ£o para esta aÃ§Ã£o.'], 403);
+        }
+
+        return null;
     }
 }
