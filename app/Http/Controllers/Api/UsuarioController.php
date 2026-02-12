@@ -6,15 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UsuarioStoreRequest;
 use App\Http\Requests\UsuarioUpdateRequest;
 use App\Http\Resources\UsuarioResource;
+use App\Enums\PerfilEnum;
+use App\Models\AcessoPerfil;
 use App\Models\AcessoUsuario;
+use App\Services\PermissoesCacheService;
 use App\Services\UsuarioService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class UsuarioController extends Controller
 {
     public function __construct(
-        private readonly UsuarioService $service
+        private readonly UsuarioService $service,
+        private readonly PermissoesCacheService $permissoesCache
     ) {}
 
     /**
@@ -38,6 +44,8 @@ class UsuarioController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        if ($resp = $this->autorizar('usuarios.visualizar')) return $resp;
+
         $q = trim((string) $request->query('q', ''));
         $ativo = $request->query('ativo', null);
         $perfilId = $request->query('perfil_id', null);
@@ -103,6 +111,55 @@ class UsuarioController extends Controller
     }
 
     /**
+     * Lista vendedores (opÃ§Ãµes para combo).
+     *
+     * Query params:
+     * - q: string (busca por nome/email)
+     * - ativo: bool (default true)
+     * - fields: "id,nome" ou "id,nome,email"
+     */
+    public function opcoesVendedores(Request $request): JsonResponse
+    {
+        if ($resp = $this->autorizarAlguma(['usuarios.visualizar', 'pedidos.selecionar_vendedor'])) return $resp;
+
+        $q = trim((string) $request->query('q', ''));
+        $ativo = $request->query('ativo', null);
+        $fields = (string) $request->query('fields', 'id,nome');
+
+        $allowed = ['id', 'nome', 'email'];
+        $cols = array_values(array_intersect($allowed, array_map('trim', explode(',', $fields))));
+        if (empty($cols)) $cols = ['id', 'nome'];
+
+        $perfilId = AcessoPerfil::query()
+            ->where('nome', PerfilEnum::VENDEDOR->value)
+            ->value('id');
+
+        if (!$perfilId) {
+            return response()->json([]);
+        }
+
+        $query = AcessoUsuario::query()
+            ->select($cols)
+            ->whereHas('perfis', fn ($p) => $p->where('acesso_perfis.id', (int) $perfilId))
+            ->orderBy('nome');
+
+        if ($q !== '') {
+            $query->where(function ($qq) use ($q) {
+                $qq->where('nome', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%");
+            });
+        }
+
+        if ($ativo !== null && $ativo !== '') {
+            $query->where('ativo', filter_var($ativo, FILTER_VALIDATE_BOOLEAN));
+        } else {
+            $query->where('ativo', true);
+        }
+
+        return response()->json($query->get());
+    }
+
+    /**
      * Cria usuário.
      *
      * @param  UsuarioStoreRequest  $request
@@ -110,8 +167,19 @@ class UsuarioController extends Controller
      */
     public function store(UsuarioStoreRequest $request): JsonResponse
     {
-        $usuario = $this->service->criar($request->validated());
-        return response()->json(new UsuarioResource($usuario), 201);
+        if ($resp = $this->autorizar('usuarios.criar')) return $resp;
+
+        try {
+            $usuario = $this->service->criar($request->validated());
+            return response()->json(new UsuarioResource($usuario), 201);
+        } catch (Throwable $e) {
+            Log::error('Falha ao criar usuario', [
+                'email' => $request->input('email'),
+                'nome' => $request->input('nome'),
+                'erro' => $e->getMessage(),
+            ]);
+            return response()->json(['message' => 'Falha ao criar usuario.'], 500);
+        }
     }
 
     /**
@@ -122,6 +190,8 @@ class UsuarioController extends Controller
      */
     public function show(AcessoUsuario $usuario): JsonResponse
     {
+        if ($resp = $this->autorizar('usuarios.visualizar')) return $resp;
+
         $usuario->load('perfis');
         return response()->json(new UsuarioResource($usuario));
     }
@@ -135,8 +205,18 @@ class UsuarioController extends Controller
      */
     public function update(UsuarioUpdateRequest $request, AcessoUsuario $usuario): JsonResponse
     {
-        $usuario = $this->service->atualizar($usuario, $request->validated());
-        return response()->json(new UsuarioResource($usuario));
+        if ($resp = $this->autorizar('usuarios.editar')) return $resp;
+
+        try {
+            $usuario = $this->service->atualizar($usuario, $request->validated());
+            return response()->json(new UsuarioResource($usuario));
+        } catch (Throwable $e) {
+            Log::error('Falha ao atualizar usuario', [
+                'usuario_id' => $usuario->id,
+                'erro' => $e->getMessage(),
+            ]);
+            return response()->json(['message' => 'Falha ao atualizar usuario.'], 500);
+        }
     }
 
     /**
@@ -147,6 +227,8 @@ class UsuarioController extends Controller
      */
     public function destroy(AcessoUsuario $usuario): JsonResponse
     {
+        if ($resp = $this->autorizar('usuarios.excluir')) return $resp;
+
         $this->service->remover($usuario);
         return response()->json(['message' => 'Usuário removido com sucesso']);
     }
@@ -163,6 +245,8 @@ class UsuarioController extends Controller
      */
     public function assignPerfil(Request $request, AcessoUsuario $usuario): JsonResponse
     {
+        if ($resp = $this->autorizar('usuarios.atribuir_perfil')) return $resp;
+
         $data = $request->validate([
             'perfis' => ['required', 'array', 'min:1'],
             'perfis.*' => ['integer', 'exists:acesso_perfis,id'],
@@ -183,7 +267,47 @@ class UsuarioController extends Controller
      */
     public function removePerfil(AcessoUsuario $usuario, $perfil): JsonResponse
     {
+        if ($resp = $this->autorizar('usuarios.remover_perfil')) return $resp;
+
         $usuario = $this->service->removerPerfil($usuario, (int) $perfil);
         return response()->json(new UsuarioResource($usuario));
+    }
+
+    private function autorizar(string $permissao): ?JsonResponse
+    {
+        return $this->autorizarAlguma([$permissao]);
+    }
+
+    private function autorizarAlguma(array $permissoesNecessarias): ?JsonResponse
+    {
+        /** @var AcessoUsuario|null $user */
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'Usu????rio n????o autenticado.'], 401);
+        }
+
+        try {
+            $permissoes = $this->permissoesCache->get($user);
+        } catch (Throwable $e) {
+            Log::error('Falha ao carregar permissoes do usuario', [
+                'usuario_id' => $user->id,
+                'erro' => $e->getMessage(),
+            ]);
+            $permissoes = [];
+        }
+
+        $temPermissao = false;
+        foreach ($permissoes as $permissao) {
+            if (in_array($permissao, $permissoesNecessarias, true)) {
+                $temPermissao = true;
+                break;
+            }
+        }
+
+        if (!$temPermissao) {
+            return response()->json(['message' => 'Sem permiss????o para esta a????????o.'], 403);
+        }
+
+        return null;
     }
 }
