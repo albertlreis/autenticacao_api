@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UsuarioStoreRequest;
 use App\Http\Requests\UsuarioUpdateRequest;
 use App\Http\Resources\UsuarioResource;
+use App\Enums\PerfilEnum;
+use App\Models\AcessoPerfil;
 use App\Models\AcessoUsuario;
 use App\Services\PermissoesCacheService;
 use App\Services\UsuarioService;
@@ -106,6 +108,55 @@ class UsuarioController extends Controller
 
         $list = $query->get();
         return response()->json(UsuarioResource::collection($list));
+    }
+
+    /**
+     * Lista vendedores (opÃ§Ãµes para combo).
+     *
+     * Query params:
+     * - q: string (busca por nome/email)
+     * - ativo: bool (default true)
+     * - fields: "id,nome" ou "id,nome,email"
+     */
+    public function opcoesVendedores(Request $request): JsonResponse
+    {
+        if ($resp = $this->autorizarAlguma(['usuarios.visualizar', 'pedidos.selecionar_vendedor'])) return $resp;
+
+        $q = trim((string) $request->query('q', ''));
+        $ativo = $request->query('ativo', null);
+        $fields = (string) $request->query('fields', 'id,nome');
+
+        $allowed = ['id', 'nome', 'email'];
+        $cols = array_values(array_intersect($allowed, array_map('trim', explode(',', $fields))));
+        if (empty($cols)) $cols = ['id', 'nome'];
+
+        $perfilId = AcessoPerfil::query()
+            ->where('nome', PerfilEnum::VENDEDOR->value)
+            ->value('id');
+
+        if (!$perfilId) {
+            return response()->json([]);
+        }
+
+        $query = AcessoUsuario::query()
+            ->select($cols)
+            ->whereHas('perfis', fn ($p) => $p->where('acesso_perfis.id', (int) $perfilId))
+            ->orderBy('nome');
+
+        if ($q !== '') {
+            $query->where(function ($qq) use ($q) {
+                $qq->where('nome', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%");
+            });
+        }
+
+        if ($ativo !== null && $ativo !== '') {
+            $query->where('ativo', filter_var($ativo, FILTER_VALIDATE_BOOLEAN));
+        } else {
+            $query->where('ativo', true);
+        }
+
+        return response()->json($query->get());
     }
 
     /**
@@ -224,10 +275,15 @@ class UsuarioController extends Controller
 
     private function autorizar(string $permissao): ?JsonResponse
     {
+        return $this->autorizarAlguma([$permissao]);
+    }
+
+    private function autorizarAlguma(array $permissoesNecessarias): ?JsonResponse
+    {
         /** @var AcessoUsuario|null $user */
         $user = auth()->user();
         if (!$user) {
-            return response()->json(['message' => 'UsuÃ¡rio nÃ£o autenticado.'], 401);
+            return response()->json(['message' => 'Usu????rio n????o autenticado.'], 401);
         }
 
         try {
@@ -240,8 +296,16 @@ class UsuarioController extends Controller
             $permissoes = [];
         }
 
-        if (!in_array($permissao, $permissoes, true)) {
-            return response()->json(['message' => 'Sem permissÃ£o para esta aÃ§Ã£o.'], 403);
+        $temPermissao = false;
+        foreach ($permissoes as $permissao) {
+            if (in_array($permissao, $permissoesNecessarias, true)) {
+                $temPermissao = true;
+                break;
+            }
+        }
+
+        if (!$temPermissao) {
+            return response()->json(['message' => 'Sem permiss????o para esta a????????o.'], 403);
         }
 
         return null;

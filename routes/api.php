@@ -37,6 +37,7 @@ Route::prefix('v1')->group(function () {
 
             // =========================
             // USUÁRIOS
+            Route::get('usuarios/opcoes/vendedores', [UsuarioController::class, 'opcoesVendedores']);
             // =========================
             Route::apiResource('usuarios', UsuarioController::class)
                 ->parameters(['usuarios' => 'usuario'])
