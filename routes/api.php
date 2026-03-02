@@ -9,6 +9,10 @@ use App\Http\Controllers\Api\PermissaoController;
 use App\Http\Controllers\MonitoramentoController;
 
 Route::prefix('v1')->group(function () {
+    Route::get('health', fn () => response()->json([
+        'status' => 'ok',
+        'service' => 'autenticacao-api',
+    ]));
 
     /* ============================================================
      * PÚBLICO / AUTH
