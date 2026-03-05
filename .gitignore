@@ -17,3 +17,7 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Artefatos locais do container/dev
+.composer/
+.config/
