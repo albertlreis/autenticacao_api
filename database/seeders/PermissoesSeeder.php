@@ -135,6 +135,10 @@ class PermissoesSeeder extends Seeder
             ['slug' => 'configuracoes.visualizar', 'nome' => 'Configurações: Visualizar', 'descricao' => 'Permite visualizar configurações'],
             ['slug' => 'configuracoes.editar', 'nome' => 'Configurações: Editar', 'descricao' => 'Permite editar configurações do sistema'],
 
+            // Avisos
+            ['slug' => 'avisos.visualizar', 'nome' => 'Avisos: Visualizar', 'descricao' => 'Permite listar e visualizar avisos internos'],
+            ['slug' => 'avisos.gerenciar', 'nome' => 'Avisos: Gerenciar', 'descricao' => 'Permite criar, editar e inativar avisos internos'],
+
             // Carrinhos
             ['slug' => 'carrinhos.visualizar.todos', 'nome' => 'Carrinhos: Visualizar', 'descricao' => 'Permite visualizar carrinhos de todos os usuários'],
             ['slug' => 'carrinhos.visualizar', 'nome' => 'Carrinhos: Visualizar', 'descricao' => 'Permite visualizar carrinhos'],
