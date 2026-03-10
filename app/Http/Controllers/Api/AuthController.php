@@ -206,18 +206,28 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        /** @var AcessoUsuario $user */
+        /** @var AcessoUsuario|null $user */
         $user = $request->user();
 
-        $request->user()->currentAccessToken()?->delete();
+        $user?->currentAccessToken()?->delete();
 
         $plain = (string) $request->cookie(config('acesso.refresh_cookie.name'));
+
         if ($plain !== '') {
             $hash = hash('sha256', $plain);
-            AcessoRefreshToken::where('usuario_id', $user->id)
+
+            $query = AcessoRefreshToken::query()
                 ->where('token_hash', $hash)
-                ->whereNull('revoked_at')
-                ->update(['revoked_at' => now(), 'last_used_at' => now()]);
+                ->whereNull('revoked_at');
+
+            if ($user) {
+                $query->where('usuario_id', $user->id);
+            }
+
+            $query->update([
+                'revoked_at' => now(),
+                'last_used_at' => now(),
+            ]);
         }
 
         return response()
