@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -31,7 +33,15 @@ class AppServiceProvider extends ServiceProvider
             'database.connections.mysql.collation' => 'utf8mb4_0900_ai_ci',
         ]);
 
-        // ✅ Garante que futuras migrations usem o charset/collation correto
-        DB::statement("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_0900_ai_ci'");
+        try {
+            DB::connection()->getPdo();
+            DB::statement("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_0900_ai_ci'");
+        } catch (QueryException|\PDOException $e) {
+            if (!$this->app->environment('testing')) {
+                Log::warning('Não foi possível aplicar charset/collation MySQL no boot.', [
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 }

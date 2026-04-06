@@ -2,16 +2,12 @@
 
 namespace Tests;
 
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
-use Tests\Concerns\CreatesTestDatabase;
 
 abstract class TestCase extends BaseTestCase
 {
     use CreatesApplication;
-    use CreatesTestDatabase;
+    use Concerns\CreatesTestDatabase;
 
     protected static bool $migrationsReady = false;
 
@@ -30,45 +26,6 @@ abstract class TestCase extends BaseTestCase
 
     protected function runSharedMigrations(): void
     {
-        Artisan::call('migrate:fresh', ['--force' => true]);
-
-        if (!config('activitylog.table_name')) {
-            config([
-                'activitylog.table_name' => 'activity_log',
-                'activitylog.database_connection' => null,
-            ]);
-        }
-
-        $externalPath = base_path('..' . DIRECTORY_SEPARATOR . 'gerenciador_estoque_api' . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'migrations');
-        $relativePrefix = '..' . DIRECTORY_SEPARATOR . 'gerenciador_estoque_api' . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'migrations';
-        $this->runExternalMigrations($externalPath, $relativePrefix);
-    }
-
-    protected function runExternalMigrations(string $path, string $relativePrefix): void
-    {
-        if (!is_dir($path)) {
-            return;
-        }
-
-        $files = glob($path . DIRECTORY_SEPARATOR . '*.php') ?: [];
-        sort($files);
-
-        $hasMigrationsTable = Schema::hasTable('migrations');
-
-        foreach ($files as $file) {
-            $migration = pathinfo($file, PATHINFO_FILENAME);
-            if ($hasMigrationsTable) {
-                if (DB::table('migrations')->where('migration', $migration)->exists()) {
-                    continue;
-                }
-            }
-
-            Artisan::call('migrate', [
-                '--path' => $relativePrefix . DIRECTORY_SEPARATOR . basename($file),
-                '--force' => true,
-            ]);
-
-            $hasMigrationsTable = true;
-        }
+        $this->artisan('migrate:fresh', ['--force' => true]);
     }
 }
