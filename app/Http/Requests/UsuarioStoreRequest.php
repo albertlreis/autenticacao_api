@@ -9,6 +9,7 @@ use Illuminate\Foundation\Http\FormRequest;
  * @property string $email
  * @property string $senha
  * @property bool|null $ativo
+ * @property bool|null $forcar_troca_senha
  * @property array<int,int>|null $perfis
  */
 class UsuarioStoreRequest extends FormRequest
@@ -30,6 +31,7 @@ class UsuarioStoreRequest extends FormRequest
             'email'  => ['required', 'string', 'email', 'max:100', 'unique:acesso_usuarios,email'],
             'senha'  => ['required', 'string', 'min:8'],
             'ativo'  => ['sometimes', 'boolean'],
+            'forcar_troca_senha' => ['sometimes', 'boolean'],
             'perfis'   => ['sometimes', 'array'],
             'perfis.*' => ['integer', 'exists:acesso_perfis,id'],
         ];

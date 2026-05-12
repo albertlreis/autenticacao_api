@@ -16,24 +16,25 @@ class UsuarioCrudTest extends TestCase
 
     private function actingAsUsuarioComPermissoes(array $slugs): AcessoUsuario
     {
+        $email = 'admin+' . str_replace('.', '', uniqid('', true)) . '@example.test';
+
         $usuario = AcessoUsuario::create([
             'nome' => 'Admin Teste',
-            'email' => 'admin@example.test',
+            'email' => $email,
             'senha' => Hash::make('SenhaForte123'),
             'ativo' => true,
         ]);
 
         $perfil = AcessoPerfil::create([
-            'nome' => 'Administrador',
+            'nome' => 'Administrador ' . $usuario->id,
             'descricao' => 'Perfil de teste',
         ]);
 
         $permissoes = collect($slugs)->map(function (string $slug) {
-            return AcessoPermissao::create([
-                'slug' => $slug,
-                'nome' => $slug,
-                'descricao' => null,
-            ]);
+            return AcessoPermissao::firstOrCreate(
+                ['slug' => $slug],
+                ['nome' => $slug, 'descricao' => null]
+            );
         });
 
         $perfil->permissoes()->sync($permissoes->pluck('id')->all());
@@ -91,6 +92,7 @@ class UsuarioCrudTest extends TestCase
         $usuario = AcessoUsuario::where('email', $payload['email'])->first();
         $this->assertNotNull($usuario);
         $this->assertTrue(Hash::check($payload['senha'], $usuario->senha));
+        $this->assertTrue((bool) $usuario->forcar_troca_senha);
     }
 
     public function test_atualiza_usuario(): void
@@ -121,5 +123,27 @@ class UsuarioCrudTest extends TestCase
         $alvo->refresh();
         $this->assertSame($payload['nome'], $alvo->nome);
         $this->assertTrue(Hash::check($payload['senha'], $alvo->senha));
+        $this->assertFalse((bool) $alvo->forcar_troca_senha);
+    }
+
+    public function test_admin_marca_usuario_para_troca_obrigatoria_de_senha(): void
+    {
+        $this->actingAsUsuarioComPermissoes(['usuarios.editar']);
+
+        $alvo = AcessoUsuario::create([
+            'nome' => 'Usuario Alvo',
+            'email' => 'alvo@example.test',
+            'senha' => Hash::make('SenhaForte123'),
+            'ativo' => true,
+            'forcar_troca_senha' => false,
+        ]);
+
+        $response = $this->putJson("/api/v1/usuarios/{$alvo->id}", [
+            'forcar_troca_senha' => true,
+        ]);
+
+        $response->assertOk();
+
+        $this->assertTrue((bool) $alvo->refresh()->forcar_troca_senha);
     }
 }

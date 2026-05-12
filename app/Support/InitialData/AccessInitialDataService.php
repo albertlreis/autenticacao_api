@@ -150,8 +150,15 @@ class AccessInitialDataService
                         'contas.pagar.pagar', 'contas.pagar.estornar', 'contas.pagar.exportar_excel', 'contas.pagar.exportar_pdf',
                         'contas.receber.view', 'contas.receber.create', 'contas.receber.update', 'contas.receber.delete',
                         'contas.receber.receber', 'contas.receber.estornar', 'contas.receber.exportar_excel', 'contas.receber.exportar_pdf',
+                        'financeiro.dashboard.visualizar',
+                        'financeiro.lancamentos.visualizar', 'financeiro.lancamentos.criar', 'financeiro.lancamentos.editar',
+                        'financeiro.lancamentos.excluir', 'financeiro.lancamentos.exportar',
+                        'despesas_recorrentes.visualizar', 'despesas_recorrentes.criar', 'despesas_recorrentes.editar',
+                        'despesas_recorrentes.executar', 'despesas_recorrentes.cancelar',
                         'relatorios.visualizar', 'relatorios.exportar_excel', 'relatorios.exportar_pdf',
                         'home.visualizar', 'home.kpis',
+                        'conta_azul.visualizar', 'conta_azul.configurar', 'conta_azul.importar',
+                        'conta_azul.conciliar', 'conta_azul.auditar',
                     ])
                     ->pluck('id');
 
@@ -414,6 +421,11 @@ class AccessInitialDataService
             ['slug' => 'financeiro.lancamentos.excluir', 'nome' => 'Financeiro: Lançamentos - Excluir', 'descricao' => 'Permite excluir lançamentos'],
             ['slug' => 'financeiro.lancamentos.exportar', 'nome' => 'Financeiro: Lançamentos - Exportar', 'descricao' => 'Permite exportar lançamentos'],
             ['slug' => 'financeiro.dashboard.visualizar', 'nome' => 'Financeiro: Dashboard - Visualizar', 'descricao' => 'Permite visualizar dashboard financeiro'],
+            ['slug' => 'conta_azul.visualizar', 'nome' => 'Conta Azul: Visualizar', 'descricao' => 'Permite acessar a integraÃ§Ã£o Conta Azul'],
+            ['slug' => 'conta_azul.configurar', 'nome' => 'Conta Azul: Configurar', 'descricao' => 'Permite configurar OAuth, token manual e teste de conexÃ£o'],
+            ['slug' => 'conta_azul.importar', 'nome' => 'Conta Azul: Importar', 'descricao' => 'Permite importar dados da Conta Azul para staging'],
+            ['slug' => 'conta_azul.conciliar', 'nome' => 'Conta Azul: Conciliar', 'descricao' => 'Permite conciliar e resolver pendÃªncias da Conta Azul'],
+            ['slug' => 'conta_azul.auditar', 'nome' => 'Conta Azul: Auditar', 'descricao' => 'Permite consultar batches e logs da Conta Azul'],
             ['slug' => 'despesas_recorrentes.visualizar', 'nome' => 'Despesas Recorrentes: Visualizar', 'descricao' => 'Permite listar e visualizar despesas recorrentes'],
             ['slug' => 'despesas_recorrentes.criar', 'nome' => 'Despesas Recorrentes: Criar', 'descricao' => 'Permite cadastrar despesas recorrentes'],
             ['slug' => 'despesas_recorrentes.editar', 'nome' => 'Despesas Recorrentes: Editar', 'descricao' => 'Permite editar despesas recorrentes'],
