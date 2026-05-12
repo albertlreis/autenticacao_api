@@ -19,21 +19,23 @@ class UsuariosVendedoresOptionsTest extends TestCase
     {
         $usuario = AcessoUsuario::create([
             'nome' => 'Usuario Permissao',
-            'email' => 'perm@test.local',
+            'email' => 'perm-' . uniqid() . '@test.local',
             'senha' => Hash::make('SenhaForte123'),
             'ativo' => true,
         ]);
 
-        $perfil = AcessoPerfil::create([
-            'nome' => 'Gestor',
-            'descricao' => 'Perfil de teste',
-        ]);
+        $perfil = AcessoPerfil::firstOrCreate(
+            ['nome' => 'Gestor'],
+            ['descricao' => 'Perfil de teste'],
+        );
 
-        $permissao = AcessoPermissao::create([
-            'slug' => $slug,
-            'nome' => $slug,
-            'descricao' => null,
-        ]);
+        $permissao = AcessoPermissao::firstOrCreate(
+            ['slug' => $slug],
+            [
+                'nome' => $slug,
+                'descricao' => null,
+            ],
+        );
 
         $perfil->permissoes()->sync([$permissao->id]);
         $usuario->perfis()->sync([$perfil->id]);
@@ -47,19 +49,19 @@ class UsuariosVendedoresOptionsTest extends TestCase
     {
         $this->actingAsComPermissao('pedidos.selecionar_vendedor');
 
-        $perfilVendedor = AcessoPerfil::create([
-            'nome' => PerfilEnum::VENDEDOR->value,
-            'descricao' => 'Perfil vendedor',
-        ]);
+        $perfilVendedor = AcessoPerfil::firstOrCreate(
+            ['nome' => PerfilEnum::VENDEDOR->value],
+            ['descricao' => 'Perfil vendedor'],
+        );
 
         $perfilOutro = AcessoPerfil::create([
-            'nome' => 'Outro',
+            'nome' => 'Outro ' . uniqid(),
             'descricao' => 'Perfil outro',
         ]);
 
         $vendedorAtivo = AcessoUsuario::create([
             'nome' => 'Vendedor Ativo',
-            'email' => 'vendedor.ativo@test.local',
+            'email' => 'vendedor.ativo-' . uniqid() . '@test.local',
             'senha' => Hash::make('SenhaForte123'),
             'ativo' => true,
         ]);
@@ -67,7 +69,7 @@ class UsuariosVendedoresOptionsTest extends TestCase
 
         $vendedorInativo = AcessoUsuario::create([
             'nome' => 'Vendedor Inativo',
-            'email' => 'vendedor.inativo@test.local',
+            'email' => 'vendedor.inativo-' . uniqid() . '@test.local',
             'senha' => Hash::make('SenhaForte123'),
             'ativo' => false,
         ]);
@@ -75,7 +77,7 @@ class UsuariosVendedoresOptionsTest extends TestCase
 
         $naoVendedor = AcessoUsuario::create([
             'nome' => 'Usuario Outro',
-            'email' => 'outro@test.local',
+            'email' => 'outro-' . uniqid() . '@test.local',
             'senha' => Hash::make('SenhaForte123'),
             'ativo' => true,
         ]);
