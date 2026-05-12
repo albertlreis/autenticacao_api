@@ -5,6 +5,7 @@ namespace App\Http;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\CachePermissoes;
 use App\Http\Middleware\EncryptCookies;
+use App\Http\Middleware\EnsureSenhaNaoObrigatoria;
 use App\Http\Middleware\EnsureUsuarioAtivo;
 use App\Http\Middleware\PreventRequestsDuringMaintenance;
 use App\Http\Middleware\RedirectIfAuthenticated;
@@ -87,5 +88,6 @@ class Kernel extends HttpKernel
         'verified' => EnsureEmailIsVerified::class,
         'cache.permissoes' => CachePermissoes::class,
         'usuario.ativo' => EnsureUsuarioAtivo::class,
+        'senha.nao_obrigatoria' => EnsureSenhaNaoObrigatoria::class,
     ];
 }

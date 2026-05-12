@@ -16,7 +16,8 @@ class UsuarioResource extends JsonResource
      *   id:int,
      *   nome:string,
      *   email:string,
-     *   ativo:bool,
+ *   ativo:bool,
+ *   forcar_troca_senha:bool,
      *   created_at:?string,
      *   updated_at:?string,
      *   ultimo_login_at:?string,
@@ -30,6 +31,7 @@ class UsuarioResource extends JsonResource
             'nome' => (string) $this->nome,
             'email' => (string) $this->email,
             'ativo' => (bool) $this->ativo,
+            'forcar_troca_senha' => (bool) $this->forcar_troca_senha,
 
             'created_at' => optional($this->created_at)?->toISOString(),
             'updated_at' => optional($this->updated_at)?->toISOString(),

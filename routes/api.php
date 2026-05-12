@@ -26,11 +26,14 @@ Route::prefix('v1')->group(function () {
     /* ============================================================
      * PROTEGIDO (SANCTUM)
      * ============================================================ */
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'senha.nao_obrigatoria'])->group(function () {
 
         // Sessão do usuário autenticado (não depende de cache de permissões)
         Route::prefix('auth')->group(function () {
             Route::get('me', [AuthController::class, 'me']);
+            Route::patch('me', [AuthController::class, 'updateMe']);
+            Route::post('avatar', [AuthController::class, 'updateAvatar']);
+            Route::put('password', [AuthController::class, 'changePassword']);
             Route::post('logout', [AuthController::class, 'logout']);
         });
 

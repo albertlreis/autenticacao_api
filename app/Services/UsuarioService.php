@@ -31,6 +31,9 @@ class UsuarioService
             'senha' => Hash::make($data['senha']),
             'ativo' => array_key_exists('ativo', $data) ? (bool) $data['ativo'] : true,
             'senha_alterada_em' => now(),
+            'forcar_troca_senha' => array_key_exists('forcar_troca_senha', $data)
+                ? (bool) $data['forcar_troca_senha']
+                : true,
         ]);
 
         if (array_key_exists('perfis', $data)) {
@@ -54,10 +57,16 @@ class UsuarioService
         if (array_key_exists('nome', $data)) $usuario->nome = $data['nome'];
         if (array_key_exists('email', $data)) $usuario->email = $data['email'];
         if (array_key_exists('ativo', $data)) $usuario->ativo = (bool) $data['ativo'];
+        if (array_key_exists('forcar_troca_senha', $data)) {
+            $usuario->forcar_troca_senha = (bool) $data['forcar_troca_senha'];
+        }
 
         if (!empty($data['senha'])) {
             $usuario->senha = Hash::make($data['senha']);
             $usuario->senha_alterada_em = now();
+            $usuario->forcar_troca_senha = array_key_exists('forcar_troca_senha', $data)
+                ? (bool) $data['forcar_troca_senha']
+                : false;
         }
 
         $usuario->save();

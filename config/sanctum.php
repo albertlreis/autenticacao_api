@@ -46,7 +46,7 @@ return [
     |
     */
 
-    'expiration' => (int) env('ACCESS_TOKEN_TTL_MINUTES', 15),
+    'expiration' => (int) env('ACCESS_TOKEN_TTL_MINUTES', 1440),
 
     /*
     |--------------------------------------------------------------------------

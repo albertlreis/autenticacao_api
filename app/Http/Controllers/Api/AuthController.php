@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Cookie;
 use Throwable;
@@ -24,6 +25,83 @@ class AuthController extends Controller
         /** @var AcessoUsuario $user */
         $user = $request->user();
 
+        return response()->json($this->userPayload($user));
+    }
+
+    public function updateMe(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'nome' => ['required', 'string', 'max:255'],
+            'telefone' => ['nullable', 'string', 'max:30'],
+            'cargo' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        /** @var AcessoUsuario $user */
+        $user = $request->user();
+        $user->nome = trim((string) $data['nome']);
+        $user->telefone = $this->nullableTrim($data['telefone'] ?? null);
+        $user->cargo = $this->nullableTrim($data['cargo'] ?? null);
+        $user->save();
+
+        return response()->json($this->userPayload($user->refresh()));
+    }
+
+    public function updateAvatar(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'avatar' => ['required', 'file', 'mimetypes:image/jpeg,image/png,image/webp', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        /** @var AcessoUsuario $user */
+        $user = $request->user();
+        $oldPath = $user->avatar_path;
+
+        $file = $data['avatar'];
+        $path = $file->storeAs(
+            'avatars',
+            $user->id . '-' . Str::uuid() . '.' . $file->getClientOriginalExtension(),
+            'public'
+        );
+
+        $user->avatar_path = $path;
+        $user->save();
+
+        if ($oldPath && $oldPath !== $path) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        return response()->json($this->userPayload($user->refresh()));
+    }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'senha_atual' => ['required', 'string'],
+            'nova_senha' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        /** @var AcessoUsuario $user */
+        $user = $request->user();
+
+        if (!Hash::check($data['senha_atual'], $user->senha)) {
+            return response()->json([
+                'message' => 'Senha atual incorreta.',
+                'errors' => [
+                    'senha_atual' => ['Senha atual incorreta.'],
+                ],
+            ], 422);
+        }
+
+        $user->senha = Hash::make($data['nova_senha']);
+        $user->senha_alterada_em = now();
+        $user->forcar_troca_senha = false;
+        $user->save();
+
+        return response()->json($this->userPayload($user->refresh()));
+    }
+
+    private function userPayload(AcessoUsuario $user): array
+    {
         $permissoes = [];
         try {
             $permissoes = $this->permissoesCache->get($user);
@@ -31,14 +109,26 @@ class AuthController extends Controller
             Log::error("Erro ao carregar permissões do usuário [{$user->id}]: ".$e->getMessage());
         }
 
-        return response()->json([
+        return [
             'id'         => $user->id,
             'nome'       => $user->nome,
             'email'      => $user->email,
+            'telefone'   => $user->telefone,
+            'cargo'      => $user->cargo,
+            'avatar_url' => $user->avatar_path ? Storage::disk('public')->url($user->avatar_path) : null,
             'ativo'      => $user->ativo,
+            'forcar_troca_senha' => (bool) $user->forcar_troca_senha,
+            'ultimo_login_em' => optional($user->ultimo_login_em)?->toISOString(),
+            'senha_alterada_em' => optional($user->senha_alterada_em)?->toISOString(),
             'perfis'     => $user->perfis()->pluck('nome')->toArray(),
             'permissoes' => $permissoes,
-        ]);
+        ];
+    }
+
+    private function nullableTrim(?string $value): ?string
+    {
+        $trimmed = trim((string) $value);
+        return $trimmed === '' ? null : $trimmed;
     }
 
     /**
@@ -138,7 +228,13 @@ class AuthController extends Controller
                     'id'         => $usuario->id,
                     'nome'       => $usuario->nome,
                     'email'      => $usuario->email,
+                    'telefone'   => $usuario->telefone,
+                    'cargo'      => $usuario->cargo,
+                    'avatar_url' => $usuario->avatar_path ? Storage::disk('public')->url($usuario->avatar_path) : null,
                     'ativo'      => $usuario->ativo,
+                    'forcar_troca_senha' => (bool) $usuario->forcar_troca_senha,
+                    'ultimo_login_em' => optional($usuario->ultimo_login_em)?->toISOString(),
+                    'senha_alterada_em' => optional($usuario->senha_alterada_em)?->toISOString(),
                     'perfis'     => $usuario->perfis()->pluck('nome')->toArray(),
                     'permissoes' => $permissoes,
                 ],

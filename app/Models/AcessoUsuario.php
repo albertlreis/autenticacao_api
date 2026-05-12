@@ -15,6 +15,9 @@ class AcessoUsuario extends Authenticatable
     protected $fillable = [
         'nome',
         'email',
+        'telefone',
+        'cargo',
+        'avatar_path',
         'senha',
         'ativo',
         'ultimo_login_em',
@@ -23,6 +26,7 @@ class AcessoUsuario extends Authenticatable
         'tentativas_login',
         'bloqueado_ate',
         'senha_alterada_em',
+        'forcar_troca_senha',
     ];
 
     protected $hidden = [
@@ -34,6 +38,7 @@ class AcessoUsuario extends Authenticatable
         'ultimo_login_em' => 'datetime',
         'bloqueado_ate'   => 'datetime',
         'senha_alterada_em' => 'datetime',
+        'forcar_troca_senha' => 'boolean',
     ];
 
     public function perfis()

@@ -10,6 +10,7 @@ use Illuminate\Validation\Rule;
  * @property string|null $email
  * @property string|null $senha
  * @property bool|null $ativo
+ * @property bool|null $forcar_troca_senha
  * @property array<int,int>|null $perfis
  */
 class UsuarioUpdateRequest extends FormRequest
@@ -34,6 +35,7 @@ class UsuarioUpdateRequest extends FormRequest
             'nome'   => ['sometimes', 'required', 'string', 'max:255'],
             'email'  => ['sometimes', 'required', 'string', 'email', 'max:100', Rule::unique('acesso_usuarios', 'email')->ignore($usuarioId)],
             'ativo'  => ['sometimes', 'boolean'],
+            'forcar_troca_senha' => ['sometimes', 'boolean'],
             'perfis'   => ['sometimes', 'array'],
             'perfis.*' => ['integer', 'exists:acesso_perfis,id'],
             'senha'  => ['sometimes', 'nullable', 'string', 'min:8'],
