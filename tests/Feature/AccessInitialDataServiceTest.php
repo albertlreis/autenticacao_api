@@ -63,6 +63,7 @@ class AccessInitialDataServiceTest extends TestCase
             'conta_azul.importar',
             'conta_azul.conciliar',
             'conta_azul.auditar',
+            'google_calendar.visualizar',
         ];
 
         $actualSlugs = DB::table('acesso_perfil_permissao')

@@ -159,6 +159,7 @@ class AccessInitialDataService
                         'home.visualizar', 'home.kpis',
                         'conta_azul.visualizar', 'conta_azul.configurar', 'conta_azul.importar',
                         'conta_azul.conciliar', 'conta_azul.auditar',
+                        'google_calendar.visualizar',
                     ])
                     ->pluck('id');
 
@@ -426,6 +427,12 @@ class AccessInitialDataService
             ['slug' => 'conta_azul.importar', 'nome' => 'Conta Azul: Importar', 'descricao' => 'Permite importar dados da Conta Azul para staging'],
             ['slug' => 'conta_azul.conciliar', 'nome' => 'Conta Azul: Conciliar', 'descricao' => 'Permite conciliar e resolver pendÃªncias da Conta Azul'],
             ['slug' => 'conta_azul.auditar', 'nome' => 'Conta Azul: Auditar', 'descricao' => 'Permite consultar batches e logs da Conta Azul'],
+            ['slug' => 'google_calendar.visualizar', 'nome' => 'Google Agenda: Visualizar', 'descricao' => 'Permite acessar o painel da Google Agenda'],
+            ['slug' => 'google_calendar.configurar', 'nome' => 'Google Agenda: Configurar', 'descricao' => 'Permite conectar conta Google e habilitar agendas'],
+            ['slug' => 'google_calendar.criar', 'nome' => 'Google Agenda: Criar', 'descricao' => 'Permite criar eventos e reunioes na Google Agenda'],
+            ['slug' => 'google_calendar.editar', 'nome' => 'Google Agenda: Editar', 'descricao' => 'Permite editar eventos da Google Agenda'],
+            ['slug' => 'google_calendar.cancelar', 'nome' => 'Google Agenda: Cancelar', 'descricao' => 'Permite cancelar eventos da Google Agenda'],
+            ['slug' => 'google_calendar.auditar', 'nome' => 'Google Agenda: Auditar', 'descricao' => 'Permite consultar logs da integracao Google Agenda'],
             ['slug' => 'despesas_recorrentes.visualizar', 'nome' => 'Despesas Recorrentes: Visualizar', 'descricao' => 'Permite listar e visualizar despesas recorrentes'],
             ['slug' => 'despesas_recorrentes.criar', 'nome' => 'Despesas Recorrentes: Criar', 'descricao' => 'Permite cadastrar despesas recorrentes'],
             ['slug' => 'despesas_recorrentes.editar', 'nome' => 'Despesas Recorrentes: Editar', 'descricao' => 'Permite editar despesas recorrentes'],

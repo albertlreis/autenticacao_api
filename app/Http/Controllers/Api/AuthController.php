@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,6 +19,8 @@ use Throwable;
 
 class AuthController extends Controller
 {
+    private const PASSWORD_RESET_GENERIC_MESSAGE = 'Se houver cadastro para este e-mail, enviaremos instruções para redefinir sua senha.';
+
     public function __construct(private readonly PermissoesCacheService $permissoesCache) {}
 
     public function me(Request $request): JsonResponse
@@ -137,6 +140,101 @@ class AuthController extends Controller
     public function register(): JsonResponse
     {
         return response()->json(['message' => 'Endpoint desabilitado (ERP interno)'], 404);
+    }
+
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => ['required', 'email', 'max:100'],
+        ]);
+
+        $email = Str::lower(trim((string) $request->email));
+        $key = "forgot-password:{$email}:{$request->ip()}";
+
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return response()->json([
+                'message' => 'Muitas solicitações. Tente novamente em alguns instantes.',
+                'retry_after_seconds' => RateLimiter::availableIn($key),
+            ], 429);
+        }
+
+        RateLimiter::hit($key, 60);
+
+        $usuario = AcessoUsuario::where('email', $email)
+            ->where('ativo', true)
+            ->first();
+
+        if ($usuario) {
+            Password::sendResetLink(['email' => $email]);
+        }
+
+        return response()->json(['message' => self::PASSWORD_RESET_GENERIC_MESSAGE]);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:100'],
+            'token' => ['required', 'string'],
+            'nova_senha' => ['required', 'string', 'min:8', 'confirmed'],
+            'nova_senha_confirmation' => ['required', 'string'],
+        ]);
+
+        $email = Str::lower(trim((string) $data['email']));
+        $key = "reset-password:{$email}:{$request->ip()}";
+
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            return response()->json([
+                'message' => 'Muitas solicitações. Tente novamente em alguns instantes.',
+                'retry_after_seconds' => RateLimiter::availableIn($key),
+            ], 429);
+        }
+
+        RateLimiter::hit($key, 60);
+
+        $usuario = AcessoUsuario::where('email', $email)
+            ->where('ativo', true)
+            ->first();
+
+        if (!$usuario) {
+            return response()->json([
+                'message' => 'Link inválido ou expirado. Solicite uma nova redefinição de senha.',
+            ], 422);
+        }
+
+        $status = Password::reset(
+            [
+                'email' => $email,
+                'token' => $data['token'],
+                'password' => $data['nova_senha'],
+                'password_confirmation' => $data['nova_senha_confirmation'],
+            ],
+            function (AcessoUsuario $user, string $password): void {
+                $user->senha = Hash::make($password);
+                $user->senha_alterada_em = now();
+                $user->forcar_troca_senha = false;
+                $user->save();
+
+                $user->tokens()->delete();
+
+                AcessoRefreshToken::where('usuario_id', $user->id)
+                    ->whereNull('revoked_at')
+                    ->update([
+                        'revoked_at' => now(),
+                        'last_used_at' => now(),
+                    ]);
+            }
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => 'Link inválido ou expirado. Solicite uma nova redefinição de senha.',
+            ], 422);
+        }
+
+        RateLimiter::clear($key);
+
+        return response()->json(['message' => 'Senha redefinida com sucesso.']);
     }
 
     public function login(Request $request): JsonResponse

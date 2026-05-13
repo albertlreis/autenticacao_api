@@ -14,6 +14,8 @@ return [
 
     'permissions_cache_ttl_hours' => (int) env('PERMISSIONS_CACHE_TTL_HOURS', 6),
 
+    'password_reset_frontend_url' => env('PASSWORD_RESET_FRONTEND_URL', 'http://localhost:3000'),
+
     'allowed_origins' => array_values(array_filter(array_map(
         static fn ($v) => trim($v),
         explode(',', (string) env('AUTH_ALLOWED_ORIGINS', ''))
