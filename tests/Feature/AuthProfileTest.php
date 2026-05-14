@@ -7,6 +7,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\Api\AuthController;
+use Illuminate\Http\Request;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -85,6 +87,15 @@ class AuthProfileTest extends TestCase
         $this->getJson('/api/v1/usuarios')
             ->assertStatus(423)
             ->assertJsonPath('code', 'PASSWORD_CHANGE_REQUIRED');
+    }
+
+    public function test_auth_me_sem_usuario_resolve_com_401(): void
+    {
+        $request = Request::create('/api/v1/auth/me', 'GET');
+        $response = app(AuthController::class)->me($request);
+
+        $this->assertSame(401, $response->getStatusCode());
+        $this->assertSame(['message' => 'Unauthenticated.'], $response->getData(true));
     }
 
     public function test_usuario_troca_senha_propria_e_limpa_obrigatoriedade(): void

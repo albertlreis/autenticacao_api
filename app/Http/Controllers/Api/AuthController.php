@@ -28,6 +28,10 @@ class AuthController extends Controller
         /** @var AcessoUsuario $user */
         $user = $request->user();
 
+        if (!$user instanceof AcessoUsuario) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
         return response()->json($this->userPayload($user));
     }
 
