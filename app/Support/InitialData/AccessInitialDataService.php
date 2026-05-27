@@ -398,6 +398,7 @@ class AccessInitialDataService
             ['slug' => 'consignacoes.gerenciar', 'nome' => 'Consignações: Gerenciar', 'descricao' => 'Permite alterar status e devolver itens'],
             ['slug' => 'consignacoes.vencendo.todos', 'nome' => 'Consignações: Vencendo (Todos)', 'descricao' => 'Permite visualizar consignações vencendo de todos os usuários'],
             ['slug' => 'monitoramento.visualizar', 'nome' => 'Monitoramento: Visualizar', 'descricao' => 'Permite visualizar métricas do sistema.'],
+            ['slug' => 'auditoria.logs.visualizar', 'nome' => 'Auditoria: Logs', 'descricao' => 'Permite visualizar auditoria e logs unificados do sistema.'],
             ['slug' => 'assistencias.visualizar', 'nome' => 'Assistências: Visualizar', 'descricao' => 'Permite visualizar assistências.'],
             ['slug' => 'assistencias.gerenciar', 'nome' => 'Assistências: Gerenciar', 'descricao' => 'Permite gerenciar assistências autorizadas.'],
             ['slug' => 'contas.pagar.view', 'nome' => 'Contas a Pagar: Visualizar', 'descricao' => 'Visualizar contas a pagar'],

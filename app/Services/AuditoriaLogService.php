@@ -1,0 +1,133 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\AuditoriaLog;
+use App\Support\Auditoria\AuditoriaRedactor;
+use Carbon\Carbon;
+use DateTimeInterface;
+use Illuminate\Support\Facades\Schema;
+
+class AuditoriaLogService
+{
+    /**
+     * @param array<string,mixed> $data
+     */
+    public function registrar(array $data): ?AuditoriaLog
+    {
+        if (!$this->tableReady()) {
+            return null;
+        }
+
+        $payload = $this->normalizePayload($data);
+
+        if (!empty($payload['source_uid'])) {
+            $existing = AuditoriaLog::query()
+                ->where('source_uid', $payload['source_uid'])
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        return AuditoriaLog::query()->create($payload);
+    }
+
+    public static function sourceUid(string $sourceSystem, string $sourceKind, string $sourceTable, string $sourceId): string
+    {
+        return hash('sha256', implode('|', [$sourceSystem, $sourceKind, $sourceTable, $sourceId]));
+    }
+
+    /**
+     * @param array<string,mixed> $data
+     * @return array<string,mixed>
+     */
+    private function normalizePayload(array $data): array
+    {
+        $request = request();
+        $user = auth()->user();
+        $sourceTable = $data['source_table'] ?? null;
+        $sourceId = $data['source_id'] ?? null;
+        $sourceSystem = (string) ($data['source_system'] ?? 'auth');
+        $sourceKind = $data['source_kind'] ?? null;
+        $categoria = (string) ($data['categoria'] ?? 'tecnico');
+
+        return [
+            'occurred_at' => $this->normalizeDate($data['occurred_at'] ?? $data['created_at'] ?? now()),
+            'tipo' => (string) ($data['tipo'] ?? 'log'),
+            'categoria' => $categoria,
+            'nivel' => $this->nullableLower($data['nivel'] ?? $data['level'] ?? null),
+            'modulo' => $this->nullableString($data['modulo'] ?? $data['module'] ?? null, 80),
+            'acao' => $this->nullableString($data['acao'] ?? $data['action'] ?? null, 80),
+            'status' => $this->nullableString($data['status'] ?? null, 60),
+            'label' => $this->nullableString($data['label'] ?? null, 255),
+            'message' => AuditoriaRedactor::truncateString($this->nullableString($data['message'] ?? null, 65000), 65000),
+            'actor_type' => $this->nullableString($data['actor_type'] ?? ($user ? get_class($user) : null), 120),
+            'actor_id' => $data['actor_id'] ?? $user?->id,
+            'actor_name' => $this->nullableString($data['actor_name'] ?? ($user?->nome ?? $user?->name ?? $user?->email), 255),
+            'entity_type' => $this->nullableString($data['entity_type'] ?? null, 190),
+            'entity_id' => $this->nullableString($data['entity_id'] ?? null, 120),
+            'source_system' => $sourceSystem,
+            'source_kind' => $this->nullableString($sourceKind, 60),
+            'source_table' => $this->nullableString($sourceTable, 120),
+            'source_id' => $this->nullableString($sourceId, 120),
+            'source_uid' => $data['source_uid'] ?? ($sourceTable && $sourceId !== null ? self::sourceUid($sourceSystem, (string) $sourceKind, (string) $sourceTable, (string) $sourceId) : null),
+            'origem' => $this->nullableString($data['origem'] ?? $data['origin'] ?? null, 60),
+            'route' => $this->nullableString($data['route'] ?? (!app()->runningInConsole() ? $request?->path() : null), 255),
+            'method' => $this->nullableString($data['method'] ?? (!app()->runningInConsole() ? $request?->method() : null), 10),
+            'ip' => $this->nullableString($data['ip'] ?? (!app()->runningInConsole() ? $request?->ip() : null), 45),
+            'user_agent' => AuditoriaRedactor::truncateString($this->nullableString($data['user_agent'] ?? (!app()->runningInConsole() ? $request?->userAgent() : null), 65000), 65000),
+            'metadata_json' => AuditoriaRedactor::redact($data['metadata_json'] ?? $data['metadata'] ?? null),
+            'context_json' => AuditoriaRedactor::redact($data['context_json'] ?? $data['context'] ?? null),
+            'raw_excerpt' => AuditoriaRedactor::truncateString(AuditoriaRedactor::redactString((string) ($data['raw_excerpt'] ?? '')), 65000) ?: null,
+            'retention_days' => (int) ($data['retention_days'] ?? (in_array($categoria, ['negocio', 'integracao'], true) ? 365 : 90)),
+        ];
+    }
+
+    private function tableReady(): bool
+    {
+        try {
+            return Schema::hasTable('auditoria_logs');
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function normalizeDate(mixed $value): Carbon
+    {
+        if ($value instanceof Carbon) {
+            return $value;
+        }
+
+        if ($value instanceof DateTimeInterface) {
+            return Carbon::instance($value);
+        }
+
+        if (is_string($value) && trim($value) !== '') {
+            return Carbon::parse($value);
+        }
+
+        return now();
+    }
+
+    private function nullableLower(mixed $value): ?string
+    {
+        $value = $this->nullableString($value, 20);
+
+        return $value === null ? null : strtolower($value);
+    }
+
+    private function nullableString(mixed $value, int $max): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_scalar($value)) {
+            return substr((string) $value, 0, $max);
+        }
+
+        return substr(json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '', 0, $max) ?: null;
+    }
+}
