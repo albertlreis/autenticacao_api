@@ -191,10 +191,10 @@ class UsuarioCrudTest extends TestCase
     {
         $admin = $this->actingAsUsuarioComPermissoes(['usuarios.atribuir_perfil', 'usuarios.remover_perfil']);
 
-        $permissao = AcessoPermissao::create([
-            'slug' => 'relatorios.visualizar',
-            'nome' => 'Relatorios visualizar',
-        ]);
+        $permissao = AcessoPermissao::firstOrCreate(
+            ['slug' => 'auditoria.perfis.visualizar'],
+            ['nome' => 'Auditoria perfis visualizar']
+        );
 
         $perfilResponse = $this->postJson('/api/v1/perfis', [
             'nome' => 'Auditor',
