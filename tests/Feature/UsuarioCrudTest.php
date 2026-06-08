@@ -6,6 +6,7 @@ use App\Models\AcessoPermissao;
 use App\Models\AcessoPerfil;
 use App\Models\AcessoUsuario;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -93,6 +94,25 @@ class UsuarioCrudTest extends TestCase
         $this->assertNotNull($usuario);
         $this->assertTrue(Hash::check($payload['senha'], $usuario->senha));
         $this->assertTrue((bool) $usuario->forcar_troca_senha);
+
+        $this->assertDatabaseHas('auditoria_logs', [
+            'modulo' => 'acessos',
+            'acao' => 'usuario.created',
+            'entity_type' => AcessoUsuario::class,
+            'entity_id' => (string) $usuario->id,
+            'source_system' => 'auth',
+        ]);
+
+        $logId = DB::table('auditoria_logs')
+            ->where('acao', 'usuario.created')
+            ->where('entity_id', (string) $usuario->id)
+            ->value('id');
+
+        $this->assertDatabaseHas('auditoria_log_mudancas', [
+            'auditoria_log_id' => $logId,
+            'campo' => 'email',
+            'new_value' => $payload['email'],
+        ]);
     }
 
     public function test_atualiza_usuario(): void
@@ -124,6 +144,26 @@ class UsuarioCrudTest extends TestCase
         $this->assertSame($payload['nome'], $alvo->nome);
         $this->assertTrue(Hash::check($payload['senha'], $alvo->senha));
         $this->assertFalse((bool) $alvo->forcar_troca_senha);
+
+        $logId = DB::table('auditoria_logs')
+            ->where('acao', 'usuario.updated')
+            ->where('entity_id', (string) $alvo->id)
+            ->latest('id')
+            ->value('id');
+
+        $this->assertNotNull($logId);
+        $this->assertDatabaseHas('auditoria_log_mudancas', [
+            'auditoria_log_id' => $logId,
+            'campo' => 'senha',
+            'old_value' => '[REDACTED]',
+            'new_value' => '[REDACTED]',
+        ]);
+
+        $mudancasSenha = DB::table('auditoria_log_mudancas')
+            ->where('auditoria_log_id', $logId)
+            ->where('campo', 'senha')
+            ->first();
+        $this->assertStringNotContainsString($alvo->senha, (string) $mudancasSenha->new_value);
     }
 
     public function test_admin_marca_usuario_para_troca_obrigatoria_de_senha(): void
@@ -145,5 +185,78 @@ class UsuarioCrudTest extends TestCase
         $response->assertOk();
 
         $this->assertTrue((bool) $alvo->refresh()->forcar_troca_senha);
+    }
+
+    public function test_audita_perfis_e_permissoes(): void
+    {
+        $admin = $this->actingAsUsuarioComPermissoes(['usuarios.atribuir_perfil', 'usuarios.remover_perfil']);
+
+        $permissao = AcessoPermissao::create([
+            'slug' => 'relatorios.visualizar',
+            'nome' => 'Relatorios visualizar',
+        ]);
+
+        $perfilResponse = $this->postJson('/api/v1/perfis', [
+            'nome' => 'Auditor',
+            'descricao' => 'Perfil auditado',
+            'permissoes' => [$permissao->id],
+        ]);
+        $perfilResponse->assertCreated();
+        $perfilId = $perfilResponse->json('id');
+
+        $this->assertDatabaseHas('auditoria_logs', [
+            'modulo' => 'acessos',
+            'acao' => 'perfil.created',
+            'entity_type' => AcessoPerfil::class,
+            'entity_id' => (string) $perfilId,
+        ]);
+
+        $alvo = AcessoUsuario::create([
+            'nome' => 'Usuario Perfil',
+            'email' => 'usuario.perfil@example.test',
+            'senha' => Hash::make('SenhaForte123'),
+            'ativo' => true,
+        ]);
+
+        $this->postJson("/api/v1/usuarios/{$alvo->id}/perfis", [
+            'perfis' => [$perfilId],
+        ])->assertOk();
+
+        $logId = DB::table('auditoria_logs')
+            ->where('acao', 'perfil.attached')
+            ->where('entity_id', (string) $alvo->id)
+            ->latest('id')
+            ->value('id');
+
+        $this->assertDatabaseHas('auditoria_log_mudancas', [
+            'auditoria_log_id' => $logId,
+            'campo' => 'perfis',
+        ]);
+
+        $this->putJson("/api/v1/perfis/{$perfilId}", [
+            'nome' => 'Auditor Atualizado',
+            'permissoes' => [],
+        ])->assertOk();
+
+        $syncLogId = DB::table('auditoria_logs')
+            ->where('acao', 'permissoes.synced')
+            ->where('entity_id', (string) $perfilId)
+            ->latest('id')
+            ->value('id');
+
+        $this->assertDatabaseHas('auditoria_log_mudancas', [
+            'auditoria_log_id' => $syncLogId,
+            'campo' => 'permissoes',
+        ]);
+
+        $this->postJson('/api/v1/permissoes', [
+            'slug' => 'auditoria.teste',
+            'nome' => 'Auditoria Teste',
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('auditoria_logs', [
+            'modulo' => 'acessos',
+            'acao' => 'permissao.created',
+        ]);
     }
 }

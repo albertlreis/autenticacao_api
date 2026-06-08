@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcessoPerfil;
+use App\Services\AuditoriaLogService;
 use App\Services\PermissoesCacheService;
+use App\Support\Auditoria\AuditoriaDiff;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -37,6 +39,13 @@ class PerfilController extends Controller
         }
 
         // Sem usuários ainda, sem cache para invalidar (ok)
+        $mudancas = AuditoriaDiff::modelChanges(null, $perfil, ['nome', 'descricao']);
+        $mudancas = array_merge(
+            $mudancas,
+            AuditoriaDiff::listChange('permissoes', [], $this->permissaoSlugs($perfil))
+        );
+        $this->registrarAuditoriaPerfil('perfil.created', $perfil, 'Perfil criado', $mudancas);
+
         return response()->json($perfil, 201);
     }
 
@@ -61,6 +70,9 @@ class PerfilController extends Controller
 
         if ($validator->fails()) return response()->json($validator->errors(), 422);
 
+        $before = $perfil->fresh(['permissoes']);
+        $permissoesAntes = $this->permissaoSlugs($before);
+
         $perfil->update($request->only('nome', 'descricao'));
 
         if ($request->has('permissoes')) {
@@ -70,6 +82,22 @@ class PerfilController extends Controller
             // invalida cache de todos usuários que possuem esse perfil
             $this->permissoesCache->forgetByPerfilId((int) $perfil->id);
         }
+
+        $perfil = $perfil->fresh(['permissoes']);
+        $mudancas = AuditoriaDiff::modelChanges($before, $perfil, ['nome', 'descricao']);
+        if ($request->has('permissoes')) {
+            $mudancas = array_merge(
+                $mudancas,
+                AuditoriaDiff::listChange('permissoes', $permissoesAntes, $this->permissaoSlugs($perfil))
+            );
+        }
+
+        $this->registrarAuditoriaPerfil(
+            $request->has('permissoes') ? 'permissoes.synced' : 'perfil.updated',
+            $perfil,
+            $request->has('permissoes') ? 'Permissoes do perfil sincronizadas' : 'Perfil atualizado',
+            $mudancas
+        );
 
         return response()->json($perfil);
     }
@@ -82,7 +110,52 @@ class PerfilController extends Controller
         // invalida cache antes de apagar (ainda dá pra achar usuários do perfil)
         $this->permissoesCache->forgetByPerfilId((int) $perfil->id);
 
+        $before = $perfil->fresh(['permissoes']);
+        $mudancas = AuditoriaDiff::modelChanges($before, null, ['nome', 'descricao']);
+        $mudancas = array_merge(
+            $mudancas,
+            AuditoriaDiff::listChange('permissoes', $this->permissaoSlugs($before), [])
+        );
+
         $perfil->delete();
+        $this->registrarAuditoriaPerfil('perfil.deleted', $before, 'Perfil removido', $mudancas);
+
         return response()->json(['message' => 'Perfil removido com sucesso']);
+    }
+    /**
+     * @return array<int,string>
+     */
+    private function permissaoSlugs(?AcessoPerfil $perfil): array
+    {
+        if (!$perfil) {
+            return [];
+        }
+
+        $permissoes = $perfil->relationLoaded('permissoes')
+            ? $perfil->permissoes
+            : $perfil->permissoes()->get();
+
+        return $permissoes->pluck('slug')->filter()->values()->all();
+    }
+
+    /**
+     * @param array<int,array{campo:string,old?:mixed,new?:mixed,old_value?:mixed,new_value?:mixed,value_type?:string}> $mudancas
+     */
+    private function registrarAuditoriaPerfil(string $acao, AcessoPerfil $perfil, string $label, array $mudancas): void
+    {
+        app(AuditoriaLogService::class)->registrar([
+            'occurred_at' => now(),
+            'tipo' => 'auditoria',
+            'categoria' => 'negocio',
+            'modulo' => 'acessos',
+            'acao' => $acao,
+            'label' => $label,
+            'message' => $label,
+            'entity_type' => AcessoPerfil::class,
+            'entity_id' => $perfil->id,
+            'source_system' => 'auth',
+            'source_kind' => 'business_event',
+            'retention_days' => 365,
+        ], $mudancas);
     }
 }

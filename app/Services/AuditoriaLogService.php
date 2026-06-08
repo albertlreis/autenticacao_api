@@ -6,14 +6,16 @@ use App\Models\AuditoriaLog;
 use App\Support\Auditoria\AuditoriaRedactor;
 use Carbon\Carbon;
 use DateTimeInterface;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class AuditoriaLogService
 {
     /**
      * @param array<string,mixed> $data
+     * @param array<int,array{campo:string,old?:mixed,new?:mixed,old_value?:mixed,new_value?:mixed,value_type?:string}> $mudancas
      */
-    public function registrar(array $data): ?AuditoriaLog
+    public function registrar(array $data, array $mudancas = []): ?AuditoriaLog
     {
         if (!$this->tableReady()) {
             return null;
@@ -31,7 +33,50 @@ class AuditoriaLogService
             }
         }
 
-        return AuditoriaLog::query()->create($payload);
+        return DB::transaction(function () use ($payload, $mudancas) {
+            $log = AuditoriaLog::query()->create($payload);
+            $this->registrarMudancas($log, $mudancas);
+
+            return $log;
+        });
+    }
+
+    /**
+     * @param array<int,array{campo:string,old?:mixed,new?:mixed,old_value?:mixed,new_value?:mixed,value_type?:string}> $mudancas
+     */
+    public function registrarMudancas(AuditoriaLog $log, array $mudancas): void
+    {
+        if (!Schema::hasTable('auditoria_log_mudancas')) {
+            return;
+        }
+
+        foreach ($mudancas as $mudanca) {
+            $old = $mudanca['old'] ?? $mudanca['old_value'] ?? null;
+            $new = $mudanca['new'] ?? $mudanca['new_value'] ?? null;
+            $campo = (string) ($mudanca['campo'] ?? '');
+
+            if ($campo === '') {
+                continue;
+            }
+
+            $redactedSecret = false;
+            if (AuditoriaRedactor::isSecretKey($campo)) {
+                $old = '[REDACTED]';
+                $new = '[REDACTED]';
+                $redactedSecret = true;
+            }
+
+            if ($old === $new && !$redactedSecret) {
+                continue;
+            }
+
+            $log->mudancas()->create([
+                'campo' => $campo,
+                'old_value' => $this->stringify($old),
+                'new_value' => $this->stringify($new),
+                'value_type' => $mudanca['value_type'] ?? $this->inferType($new),
+            ]);
+        }
     }
 
     public static function sourceUid(string $sourceSystem, string $sourceKind, string $sourceTable, string $sourceId): string
@@ -129,5 +174,35 @@ class AuditoriaLogService
         }
 
         return substr(json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '', 0, $max) ?: null;
+    }
+
+    private function stringify(mixed $value): ?string
+    {
+        $value = AuditoriaRedactor::redact($value);
+
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_scalar($value)) {
+            return AuditoriaRedactor::truncateString((string) $value, 65000);
+        }
+
+        return AuditoriaRedactor::truncateString(
+            json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: null,
+            65000
+        );
+    }
+
+    private function inferType(mixed $value): string
+    {
+        return match (true) {
+            is_int($value) => 'int',
+            is_float($value) => 'float',
+            is_bool($value) => 'bool',
+            is_array($value), is_object($value) => 'json',
+            $value === null => 'null',
+            default => 'string',
+        };
     }
 }
