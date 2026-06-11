@@ -178,6 +178,17 @@ jobs:
               update_env_file "$file" AWS_DEFAULT_REGION "$SIERRA_AUTH_AWS_DEFAULT_REGION_B64"
             }
 
+            install_dependencies() {
+              if command -v composer >/dev/null 2>&1; then
+                (cd "${APP_DIR}/html" && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader)
+              else
+                docker run --rm -v "${APP_DIR}/html:/app" -w /app composer:2 \
+                  composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+              fi
+
+              docker cp "${APP_DIR}/html/vendor" "${CONTAINER_NAME}:/var/www/html/vendor"
+            }
+
             deploy_args="$(decode "$DEPLOY_ARGS_B64")"
 
             apply_mail_env "$HOST_ENV_FILE"
@@ -189,6 +200,7 @@ jobs:
               ./deploy.sh
             fi
 
+            install_dependencies
             apply_mail_env "$HOST_ENV_FILE"
             docker cp "$HOST_ENV_FILE" "${CONTAINER_NAME}:/var/www/html/.env"
 
@@ -212,6 +224,7 @@ jobs:
                 /var/www/html/bootstrap/cache
 
               cd /var/www/html
+              php -r "require \"vendor/autoload.php\"; exit(class_exists(\"Aws\\\\SesV2\\\\SesV2Client\") ? 0 : 1);"
               php artisan optimize:clear
               php artisan config:cache
               php artisan route:cache
