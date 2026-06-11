@@ -86,6 +86,7 @@ jobs:
       SIERRA_AUTH_AWS_ACCESS_KEY_ID: ${{ secrets.SIERRA_AUTH_AWS_ACCESS_KEY_ID }}
       SIERRA_AUTH_AWS_SECRET_ACCESS_KEY: ${{ secrets.SIERRA_AUTH_AWS_SECRET_ACCESS_KEY }}
       SIERRA_AUTH_AWS_DEFAULT_REGION: ${{ secrets.SIERRA_AUTH_AWS_DEFAULT_REGION }}
+      SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL: https://sierra.acadsoft.com.br
 
     steps:
       - name: Start ssh-agent
@@ -118,6 +119,7 @@ jobs:
             SIERRA_AUTH_AWS_ACCESS_KEY_ID
             SIERRA_AUTH_AWS_SECRET_ACCESS_KEY
             SIERRA_AUTH_AWS_DEFAULT_REGION
+            SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL
           )
 
           for name in "${required_env[@]}"; do
@@ -176,6 +178,7 @@ jobs:
               update_env_file "$file" AWS_ACCESS_KEY_ID "$SIERRA_AUTH_AWS_ACCESS_KEY_ID_B64"
               update_env_file "$file" AWS_SECRET_ACCESS_KEY "$SIERRA_AUTH_AWS_SECRET_ACCESS_KEY_B64"
               update_env_file "$file" AWS_DEFAULT_REGION "$SIERRA_AUTH_AWS_DEFAULT_REGION_B64"
+              update_env_file "$file" PASSWORD_RESET_FRONTEND_URL "$SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL_B64"
             }
 
             install_dependencies() {
