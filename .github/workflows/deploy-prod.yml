@@ -180,6 +180,8 @@ jobs:
 
             deploy_args="$(decode "$DEPLOY_ARGS_B64")"
 
+            apply_mail_env "$HOST_ENV_FILE"
+
             cd "$APP_DIR"
             if [ -n "$deploy_args" ]; then
               ./deploy.sh "$deploy_args"
