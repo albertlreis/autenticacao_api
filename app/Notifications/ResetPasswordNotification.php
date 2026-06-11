@@ -27,11 +27,12 @@ class ResetPasswordNotification extends Notification
         ]);
 
         return (new MailMessage)
-            ->subject('Redefinir senha')
-            ->greeting('Olá!')
-            ->line('Recebemos uma solicitação para redefinir a senha da sua conta.')
-            ->action('Redefinir senha', $url)
-            ->line('Este link expira em 60 minutos.')
-            ->line('Se você não solicitou a redefinição, nenhuma ação é necessária.');
+            ->subject('Redefinir senha - Sierra Móveis')
+            ->view('emails.password-reset', [
+                'brandName' => 'Sierra Móveis',
+                'logoUrl' => $frontendUrl . '/logo.png',
+                'resetUrl' => $url,
+                'expirationMinutes' => 60,
+            ]);
     }
 }

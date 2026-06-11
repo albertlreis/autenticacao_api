@@ -22,7 +22,7 @@ class PasswordResetTest extends TestCase
     public function test_usuario_ativo_solicita_reset_e_recebe_notificacao(): void
     {
         Notification::fake();
-        config(['acesso.password_reset_frontend_url' => 'http://localhost:3000']);
+        config(['acesso.password_reset_frontend_url' => 'https://sierra.acadsoft.com.br']);
 
         $usuario = AcessoUsuario::create([
             'nome' => 'Usuario Reset',
@@ -42,9 +42,16 @@ class PasswordResetTest extends TestCase
             ResetPasswordNotification::class,
             function (ResetPasswordNotification $notification) use ($usuario): bool {
                 $mail = $notification->toMail($usuario);
+                $html = view($mail->view, $mail->viewData)->render();
 
-                return str_contains((string) $mail->actionUrl, '/resetar-senha?')
-                    && str_contains((string) $mail->actionUrl, 'email=reset%40example.test')
+                return $mail->subject === 'Redefinir senha - Sierra Móveis'
+                    && $mail->view === 'emails.password-reset'
+                    && str_contains((string) $mail->viewData['resetUrl'], 'https://sierra.acadsoft.com.br/resetar-senha?')
+                    && str_contains((string) $mail->viewData['resetUrl'], 'email=reset%40example.test')
+                    && str_contains($html, 'Sierra Móveis')
+                    && str_contains($html, 'Recebemos uma solicitação para redefinir a senha da sua conta na Sierra Móveis.')
+                    && ! str_contains($html, 'Regards')
+                    && ! str_contains($html, 'Laravel')
                     && $notification->token !== '';
             }
         );
