@@ -77,6 +77,15 @@ jobs:
     environment: production
     env:
       RUN_MIGRATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_migrations || 'false' }}
+      SIERRA_AUTH_MAIL_MAILER: ${{ secrets.SIERRA_AUTH_MAIL_MAILER }}
+      SIERRA_AUTH_MAIL_FROM_ADDRESS: ${{ secrets.SIERRA_AUTH_MAIL_FROM_ADDRESS }}
+      SIERRA_AUTH_MAIL_FROM_NAME: ${{ secrets.SIERRA_AUTH_MAIL_FROM_NAME }}
+      SIERRA_AUTH_MAIL_REPLY_TO_ADDRESS: ${{ secrets.SIERRA_AUTH_MAIL_REPLY_TO_ADDRESS }}
+      SIERRA_AUTH_MAIL_REPLY_TO_NAME: ${{ secrets.SIERRA_AUTH_MAIL_REPLY_TO_NAME }}
+      SIERRA_AUTH_SES_CONFIGURATION_SET: ${{ secrets.SIERRA_AUTH_SES_CONFIGURATION_SET }}
+      SIERRA_AUTH_AWS_ACCESS_KEY_ID: ${{ secrets.SIERRA_AUTH_AWS_ACCESS_KEY_ID }}
+      SIERRA_AUTH_AWS_SECRET_ACCESS_KEY: ${{ secrets.SIERRA_AUTH_AWS_SECRET_ACCESS_KEY }}
+      SIERRA_AUTH_AWS_DEFAULT_REGION: ${{ secrets.SIERRA_AUTH_AWS_DEFAULT_REGION }}
 
     steps:
       - name: Start ssh-agent
@@ -91,12 +100,119 @@ jobs:
 
       - name: Trigger deploy on droplet
         run: |
+          set -euo pipefail
+
           deploy_args=""
 
           if [ "${RUN_MIGRATIONS}" = "true" ]; then
             deploy_args="--migrate"
           fi
 
-          remote_command="cd /home/docker/acadsoft/sierra-auth && ./deploy.sh ${deploy_args} && docker exec sierra_auth_app sh -lc 'mkdir -p /var/www/html/storage/framework/cache/data /var/www/html/storage/framework/sessions /var/www/html/storage/framework/views /var/www/html/storage/framework/testing /var/www/html/storage/logs /var/www/html/bootstrap/cache && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && chmod -R ug+rwX /var/www/html/storage /var/www/html/bootstrap/cache'"
+          required_env=(
+            SIERRA_AUTH_MAIL_MAILER
+            SIERRA_AUTH_MAIL_FROM_ADDRESS
+            SIERRA_AUTH_MAIL_FROM_NAME
+            SIERRA_AUTH_MAIL_REPLY_TO_ADDRESS
+            SIERRA_AUTH_MAIL_REPLY_TO_NAME
+            SIERRA_AUTH_SES_CONFIGURATION_SET
+            SIERRA_AUTH_AWS_ACCESS_KEY_ID
+            SIERRA_AUTH_AWS_SECRET_ACCESS_KEY
+            SIERRA_AUTH_AWS_DEFAULT_REGION
+          )
 
-          ssh -p "${{ secrets.DEPLOY_PORT }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "${remote_command}"
+          for name in "${required_env[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::${name} is required for the production deploy."
+              exit 1
+            fi
+          done
+
+          b64() {
+            printf '%s' "$1" | base64 -w 0
+          }
+
+          remote_exports=""
+          for name in "${required_env[@]}"; do
+            remote_exports="${remote_exports} ${name}_B64='$(b64 "${!name}")'"
+          done
+          remote_exports="${remote_exports} DEPLOY_ARGS_B64='$(b64 "${deploy_args}")'"
+
+          ssh -p "${{ secrets.DEPLOY_PORT }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "${remote_exports} bash -s" <<'REMOTE'
+            set -euo pipefail
+
+            APP_DIR=/home/docker/acadsoft/sierra-auth
+            HOST_ENV_FILE="${APP_DIR}/html/.env"
+            CONTAINER_NAME=sierra_auth_app
+
+            decode() {
+              printf '%s' "$1" | base64 -d
+            }
+
+            update_env_file() {
+              file="$1"
+              key="$2"
+              value="$(decode "$3")"
+              tmp="$(mktemp)"
+
+              mkdir -p "$(dirname "$file")"
+              touch "$file"
+              grep -v -E "^${key}=" "$file" > "$tmp" || true
+              {
+                cat "$tmp"
+                printf '%s=%s\n' "$key" "$value"
+              } > "$file"
+              rm -f "$tmp"
+            }
+
+            apply_mail_env() {
+              file="$1"
+
+              update_env_file "$file" MAIL_MAILER "$SIERRA_AUTH_MAIL_MAILER_B64"
+              update_env_file "$file" MAIL_FROM_ADDRESS "$SIERRA_AUTH_MAIL_FROM_ADDRESS_B64"
+              update_env_file "$file" MAIL_FROM_NAME "$SIERRA_AUTH_MAIL_FROM_NAME_B64"
+              update_env_file "$file" MAIL_REPLY_TO_ADDRESS "$SIERRA_AUTH_MAIL_REPLY_TO_ADDRESS_B64"
+              update_env_file "$file" MAIL_REPLY_TO_NAME "$SIERRA_AUTH_MAIL_REPLY_TO_NAME_B64"
+              update_env_file "$file" SES_CONFIGURATION_SET "$SIERRA_AUTH_SES_CONFIGURATION_SET_B64"
+              update_env_file "$file" AWS_ACCESS_KEY_ID "$SIERRA_AUTH_AWS_ACCESS_KEY_ID_B64"
+              update_env_file "$file" AWS_SECRET_ACCESS_KEY "$SIERRA_AUTH_AWS_SECRET_ACCESS_KEY_B64"
+              update_env_file "$file" AWS_DEFAULT_REGION "$SIERRA_AUTH_AWS_DEFAULT_REGION_B64"
+            }
+
+            deploy_args="$(decode "$DEPLOY_ARGS_B64")"
+
+            cd "$APP_DIR"
+            if [ -n "$deploy_args" ]; then
+              ./deploy.sh "$deploy_args"
+            else
+              ./deploy.sh
+            fi
+
+            apply_mail_env "$HOST_ENV_FILE"
+            docker cp "$HOST_ENV_FILE" "${CONTAINER_NAME}:/var/www/html/.env"
+
+            docker exec "$CONTAINER_NAME" sh -lc '
+              set -e
+
+              mkdir -p \
+                /var/www/html/storage/framework/cache/data \
+                /var/www/html/storage/framework/sessions \
+                /var/www/html/storage/framework/views \
+                /var/www/html/storage/framework/testing \
+                /var/www/html/storage/logs \
+                /var/www/html/bootstrap/cache
+
+              chown -R www-data:www-data \
+                /var/www/html/storage \
+                /var/www/html/bootstrap/cache
+
+              chmod -R ug+rwX \
+                /var/www/html/storage \
+                /var/www/html/bootstrap/cache
+
+              cd /var/www/html
+              php artisan optimize:clear
+              php artisan config:cache
+              php artisan route:cache
+              php artisan view:cache
+            '
+REMOTE
