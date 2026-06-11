@@ -203,6 +203,8 @@ jobs:
             install_dependencies
             apply_mail_env "$HOST_ENV_FILE"
             docker cp "$HOST_ENV_FILE" "${CONTAINER_NAME}:/var/www/html/.env"
+            docker restart "$CONTAINER_NAME"
+            sleep 5
 
             docker exec "$CONTAINER_NAME" sh -lc '
               set -e
