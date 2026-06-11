@@ -347,6 +347,7 @@ class AccessInitialDataService
             ['slug' => 'produtos.excluir', 'nome' => 'Produtos: Excluir', 'descricao' => 'Permite excluir produtos'],
             ['slug' => 'produtos.importar', 'nome' => 'Produtos: Importar XML', 'descricao' => 'Permite importar produtos via XML de nota fiscal'],
             ['slug' => 'produtos.catalogo', 'nome' => 'Produtos: Ver Catálogo', 'descricao' => 'Permite visualizar o catálogo de produtos'],
+            ['slug' => 'produtos.precos_custos', 'nome' => 'Produtos: Preços e Custos', 'descricao' => 'Permite acessar e gerenciar preços e custos dos produtos'],
             ['slug' => 'produtos.outlet', 'nome' => 'Produtos: Ver Outlet', 'descricao' => 'Permite acessar produtos em outlet'],
             ['slug' => 'produtos.outlet.cadastrar', 'nome' => 'Outlet: Cadastrar', 'descricao' => 'Permite cadastrar produtos no outlet'],
             ['slug' => 'produtos.outlet.editar', 'nome' => 'Outlet: Editar', 'descricao' => 'Permite editar dados de outlet de um produto'],
