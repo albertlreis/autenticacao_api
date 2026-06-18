@@ -45,28 +45,24 @@ class AccessInitialDataService
             $row['updated_at'] = $now;
         }
 
-        DB::table('acesso_perfis')->upsert(
-            $rows,
-            ['nome'],
-            ['descricao', 'updated_at']
-        );
+        DB::table('acesso_perfis')->insertOrIgnore($rows);
     }
 
     public function seedPermissoes(): void
     {
         $now = now();
 
-        foreach ($this->permissoes() as $permissao) {
-            DB::table('acesso_permissoes')->updateOrInsert(
-                ['slug' => $permissao['slug']],
-                [
-                    'nome' => $permissao['nome'],
-                    'descricao' => $permissao['descricao'],
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]
-            );
-        }
+        $rows = collect($this->permissoes())
+            ->map(fn (array $permissao) => [
+                'slug' => $permissao['slug'],
+                'nome' => $permissao['nome'],
+                'descricao' => $permissao['descricao'],
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])
+            ->all();
+
+        DB::table('acesso_permissoes')->insertOrIgnore($rows);
     }
 
     public function seedUsuariosPadrao(): void
@@ -74,31 +70,21 @@ class AccessInitialDataService
         $now = now();
 
         foreach ($this->usuariosPadrao() as $usuario) {
-            $existente = DB::table('acesso_usuarios')
+            $existe = DB::table('acesso_usuarios')
                 ->where('email', $usuario['email'])
-                ->first();
+                ->exists();
 
-            $payload = [
-                'nome' => $usuario['nome'],
-                'ativo' => true,
-                'updated_at' => $now,
-            ];
-
-            if (!$existente) {
-                $payload += [
+            if (!$existe) {
+                DB::table('acesso_usuarios')->insert([
+                    'nome' => $usuario['nome'],
+                    'ativo' => true,
+                    'updated_at' => $now,
                     'email' => $usuario['email'],
                     'senha' => Hash::make($usuario['senha']),
                     'senha_alterada_em' => $now,
                     'created_at' => $now,
-                ];
-
-                DB::table('acesso_usuarios')->insert($payload);
-                continue;
+                ]);
             }
-
-            DB::table('acesso_usuarios')
-                ->where('id', $existente->id)
-                ->update($payload);
         }
     }
 
@@ -131,16 +117,7 @@ class AccessInitialDataService
                     continue;
                 }
 
-                DB::table('acesso_usuario_perfil')->updateOrInsert(
-                    [
-                        'id_usuario' => $usuario->id,
-                        'id_perfil' => $perfilId,
-                    ],
-                    [
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ]
-                );
+                $this->insertUsuarioPerfil((int) $usuario->id, (int) $perfilId, $now);
             }
 
             if ($financeiroPerfilId) {
@@ -164,7 +141,7 @@ class AccessInitialDataService
                     ->pluck('id');
 
                 foreach ($financeiroPerms as $permissaoId) {
-                    $this->upsertPerfilPermissao($financeiroPerfilId, (int) $permissaoId, $now);
+                    $this->insertPerfilPermissao($financeiroPerfilId, (int) $permissaoId, $now);
                 }
             }
 
@@ -196,7 +173,7 @@ class AccessInitialDataService
                     ->pluck('id');
 
                 foreach ($estoquistaPerms as $permissaoId) {
-                    $this->upsertPerfilPermissao($estoquistaPerfilId, (int) $permissaoId, $now);
+                    $this->insertPerfilPermissao($estoquistaPerfilId, (int) $permissaoId, $now);
                 }
             }
 
@@ -204,7 +181,7 @@ class AccessInitialDataService
 
             foreach ($permissoes as $permissao) {
                 if ($devPerfilId) {
-                    $this->upsertPerfilPermissao($devPerfilId, (int) $permissao->id, $now);
+                    $this->insertPerfilPermissao($devPerfilId, (int) $permissao->id, $now);
                 }
 
                 if (
@@ -223,7 +200,7 @@ class AccessInitialDataService
                         'permissoes.excluir',
                     ], true)
                 ) {
-                    $this->upsertPerfilPermissao($adminPerfilId, (int) $permissao->id, $now);
+                    $this->insertPerfilPermissao($adminPerfilId, (int) $permissao->id, $now);
                 }
 
                 if (
@@ -258,10 +235,11 @@ class AccessInitialDataService
                             && $permissao->slug !== 'consignacoes.vencendo.todos'
                         )
                         || str_starts_with($permissao->slug, 'home.')
+                        || str_starts_with($permissao->slug, 'parceiros.')
                         || $permissao->slug === 'fornecedores.visualizar'
                     )
                 ) {
-                    $this->upsertPerfilPermissao($vendedorPerfilId, (int) $permissao->id, $now);
+                    $this->insertPerfilPermissao($vendedorPerfilId, (int) $permissao->id, $now);
                 }
             }
         });
@@ -272,18 +250,24 @@ class AccessInitialDataService
         Artisan::call('permissao:refresh-cache');
     }
 
-    private function upsertPerfilPermissao(int $perfilId, int $permissaoId, \Illuminate\Support\Carbon $now): void
+    private function insertUsuarioPerfil(int $usuarioId, int $perfilId, \Illuminate\Support\Carbon $now): void
     {
-        DB::table('acesso_perfil_permissao')->updateOrInsert(
-            [
-                'id_perfil' => $perfilId,
-                'id_permissao' => $permissaoId,
-            ],
-            [
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]
-        );
+        DB::table('acesso_usuario_perfil')->insertOrIgnore([
+            'id_usuario' => $usuarioId,
+            'id_perfil' => $perfilId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function insertPerfilPermissao(int $perfilId, int $permissaoId, \Illuminate\Support\Carbon $now): void
+    {
+        DB::table('acesso_perfil_permissao')->insertOrIgnore([
+            'id_perfil' => $perfilId,
+            'id_permissao' => $permissaoId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
     }
 
     private function usuariosPadrao(): array

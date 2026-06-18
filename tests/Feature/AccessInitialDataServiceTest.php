@@ -12,6 +12,91 @@ class AccessInitialDataServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_carga_inicial_nao_altera_registros_existentes_e_adiciona_associacoes_faltantes(): void
+    {
+        $service = new AccessInitialDataService();
+
+        $service->seedPerfis();
+        $service->seedPermissoes();
+        $service->seedUsuariosPadrao();
+        $service->seedAssociacoes();
+
+        $oldTimestamp = '2024-01-02 03:04:05';
+        $vendedorPerfilId = DB::table('acesso_perfis')
+            ->where('nome', PerfilEnum::VENDEDOR->value)
+            ->value('id');
+        $vendedorUsuarioId = DB::table('acesso_usuarios')
+            ->where('email', 'vendedor1@teste.com')
+            ->value('id');
+        $homePermissaoId = DB::table('acesso_permissoes')
+            ->where('slug', 'home.visualizar')
+            ->value('id');
+        $parceiroPermissaoId = DB::table('acesso_permissoes')
+            ->where('slug', 'parceiros.visualizar')
+            ->value('id');
+
+        DB::table('acesso_perfis')
+            ->where('id', $vendedorPerfilId)
+            ->update([
+                'descricao' => 'Descricao preservada',
+                'updated_at' => $oldTimestamp,
+            ]);
+
+        DB::table('acesso_permissoes')
+            ->where('id', $parceiroPermissaoId)
+            ->update([
+                'nome' => 'Nome preservado',
+                'descricao' => 'Descricao preservada',
+                'updated_at' => $oldTimestamp,
+            ]);
+
+        DB::table('acesso_usuarios')
+            ->where('id', $vendedorUsuarioId)
+            ->update([
+                'nome' => 'Usuario preservado',
+                'ativo' => false,
+                'updated_at' => $oldTimestamp,
+            ]);
+
+        DB::table('acesso_perfil_permissao')
+            ->where('id_perfil', $vendedorPerfilId)
+            ->where('id_permissao', $homePermissaoId)
+            ->update(['updated_at' => $oldTimestamp]);
+
+        DB::table('acesso_perfil_permissao')
+            ->where('id_perfil', $vendedorPerfilId)
+            ->where('id_permissao', $parceiroPermissaoId)
+            ->delete();
+
+        $service->runBootstrap();
+
+        $this->assertSame('Descricao preservada', DB::table('acesso_perfis')->where('id', $vendedorPerfilId)->value('descricao'));
+        $this->assertSame($oldTimestamp, (string) DB::table('acesso_perfis')->where('id', $vendedorPerfilId)->value('updated_at'));
+
+        $permissao = DB::table('acesso_permissoes')->where('id', $parceiroPermissaoId)->first();
+        $this->assertSame('Nome preservado', $permissao->nome);
+        $this->assertSame('Descricao preservada', $permissao->descricao);
+        $this->assertSame($oldTimestamp, (string) $permissao->updated_at);
+
+        $usuario = DB::table('acesso_usuarios')->where('id', $vendedorUsuarioId)->first();
+        $this->assertSame('Usuario preservado', $usuario->nome);
+        $this->assertFalse((bool) $usuario->ativo);
+        $this->assertSame($oldTimestamp, (string) $usuario->updated_at);
+
+        $this->assertSame(
+            $oldTimestamp,
+            (string) DB::table('acesso_perfil_permissao')
+                ->where('id_perfil', $vendedorPerfilId)
+                ->where('id_permissao', $homePermissaoId)
+                ->value('updated_at')
+        );
+
+        $this->assertDatabaseHas('acesso_perfil_permissao', [
+            'id_perfil' => $vendedorPerfilId,
+            'id_permissao' => $parceiroPermissaoId,
+        ]);
+    }
+
     public function test_seed_associacoes_atribui_permissoes_financeiras_e_conta_azul_ao_financeiro_sem_duplicar(): void
     {
         $service = new AccessInitialDataService();
