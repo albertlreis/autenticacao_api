@@ -12,6 +12,46 @@ class AccessInitialDataServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_carga_inicial_em_producao_nao_cria_usuarios_padrao(): void
+    {
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $service = new AccessInitialDataService();
+        $logs = [];
+
+        $service->runBootstrap(function (string $label) use (&$logs): void {
+            $logs[] = $label;
+        });
+
+        $adminPerfilId = DB::table('acesso_perfis')
+            ->where('nome', PerfilEnum::ADMINISTRADOR->value)
+            ->value('id');
+        $homePermissaoId = DB::table('acesso_permissoes')
+            ->where('slug', 'home.visualizar')
+            ->value('id');
+
+        $this->assertNotNull($adminPerfilId);
+        $this->assertNotNull($homePermissaoId);
+        $this->assertDatabaseHas('acesso_perfil_permissao', [
+            'id_perfil' => $adminPerfilId,
+            'id_permissao' => $homePermissaoId,
+        ]);
+        $this->assertSame(0, DB::table('acesso_usuarios')->where('email', 'like', '%@teste.com')->count());
+        $this->assertTrue(collect($logs)->contains(fn (string $label): bool => str_contains($label, 'local/testing')));
+    }
+
+    public function test_carga_inicial_em_ambiente_local_cria_usuarios_padrao(): void
+    {
+        $this->app->detectEnvironment(fn () => 'local');
+
+        (new AccessInitialDataService())->runBootstrap();
+
+        $this->assertDatabaseHas('acesso_usuarios', ['email' => 'dev@teste.com']);
+        $this->assertDatabaseHas('acesso_usuarios', ['email' => 'admin@teste.com']);
+        $this->assertDatabaseHas('acesso_usuarios', ['email' => 'vendedor1@teste.com']);
+        $this->assertSame(7, DB::table('acesso_usuarios')->where('email', 'like', '%@teste.com')->count());
+    }
+
     public function test_carga_inicial_nao_altera_registros_existentes_e_adiciona_associacoes_faltantes(): void
     {
         $service = new AccessInitialDataService();

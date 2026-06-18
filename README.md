@@ -45,11 +45,21 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-4. Configure o banco de dados e execute as migrations:
+4. Configure o banco de dados e execute as migrations em desenvolvimento local:
 
 ```bash
 php artisan migrate --seed
 ```
+
+Em producao ou manutencao, nao use `migrate --seed` para adicionar permissoes.
+Execute as migrations e depois a carga obrigatoria de acesso:
+
+```bash
+php artisan migrate --force
+php artisan app:setup-initial-data
+```
+
+Os usuarios demonstrativos `@teste.com` sao criados apenas em `local`/`testing`.
 
 5. Inicie o servidor:
 
@@ -89,4 +99,3 @@ DB_DATABASE=erp_auth
 DB_USERNAME=root
 DB_PASSWORD=secret
 ```
-

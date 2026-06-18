@@ -19,6 +19,14 @@ class AccessInitialDataService
         ];
 
         foreach ($steps as $label => $method) {
+            if ($method === 'seedUsuariosPadrao' && !$this->shouldSeedUsuariosPadrao()) {
+                if ($logger) {
+                    $logger($label . ' (pulados fora de local/testing)');
+                }
+
+                continue;
+            }
+
             if ($logger) {
                 $logger($label);
             }
@@ -26,6 +34,11 @@ class AccessInitialDataService
         }
 
         $this->refreshPermissoesCache();
+    }
+
+    public function shouldSeedUsuariosPadrao(): bool
+    {
+        return app()->environment(['local', 'testing']);
     }
 
     public function seedPerfis(): void
