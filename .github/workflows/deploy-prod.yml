@@ -145,6 +145,7 @@ jobs:
             APP_DIR=/home/docker/acadsoft/sierra-auth
             HOST_ENV_FILE="${APP_DIR}/html/.env"
             CONTAINER_NAME=sierra_auth_app
+            BACKUP_SCRIPT=/home/docker/acadsoft/sierra-estoque/html/scripts/backup-production.sh
 
             decode() {
               printf '%s' "$1" | base64 -d
@@ -193,6 +194,13 @@ jobs:
             }
 
             deploy_args="$(decode "$DEPLOY_ARGS_B64")"
+
+            if [ ! -x "$BACKUP_SCRIPT" ]; then
+              echo "Backup script not found or not executable: $BACKUP_SCRIPT"
+              exit 1
+            fi
+
+            "$BACKUP_SCRIPT"
 
             apply_mail_env "$HOST_ENV_FILE"
 
