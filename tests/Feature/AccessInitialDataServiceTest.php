@@ -12,6 +12,131 @@ class AccessInitialDataServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_carga_inicial_em_producao_nao_cria_usuarios_padrao(): void
+    {
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $service = new AccessInitialDataService();
+        $logs = [];
+
+        $service->runBootstrap(function (string $label) use (&$logs): void {
+            $logs[] = $label;
+        });
+
+        $adminPerfilId = DB::table('acesso_perfis')
+            ->where('nome', PerfilEnum::ADMINISTRADOR->value)
+            ->value('id');
+        $homePermissaoId = DB::table('acesso_permissoes')
+            ->where('slug', 'home.visualizar')
+            ->value('id');
+
+        $this->assertNotNull($adminPerfilId);
+        $this->assertNotNull($homePermissaoId);
+        $this->assertDatabaseHas('acesso_perfil_permissao', [
+            'id_perfil' => $adminPerfilId,
+            'id_permissao' => $homePermissaoId,
+        ]);
+        $this->assertSame(0, DB::table('acesso_usuarios')->where('email', 'like', '%@teste.com')->count());
+        $this->assertTrue(collect($logs)->contains(fn (string $label): bool => str_contains($label, 'local/testing')));
+    }
+
+    public function test_carga_inicial_em_ambiente_local_cria_usuarios_padrao(): void
+    {
+        $this->app->detectEnvironment(fn () => 'local');
+
+        (new AccessInitialDataService())->runBootstrap();
+
+        $this->assertDatabaseHas('acesso_usuarios', ['email' => 'dev@teste.com']);
+        $this->assertDatabaseHas('acesso_usuarios', ['email' => 'admin@teste.com']);
+        $this->assertDatabaseHas('acesso_usuarios', ['email' => 'vendedor1@teste.com']);
+        $this->assertSame(7, DB::table('acesso_usuarios')->where('email', 'like', '%@teste.com')->count());
+    }
+
+    public function test_carga_inicial_nao_altera_registros_existentes_e_adiciona_associacoes_faltantes(): void
+    {
+        $service = new AccessInitialDataService();
+
+        $service->seedPerfis();
+        $service->seedPermissoes();
+        $service->seedUsuariosPadrao();
+        $service->seedAssociacoes();
+
+        $oldTimestamp = '2024-01-02 03:04:05';
+        $vendedorPerfilId = DB::table('acesso_perfis')
+            ->where('nome', PerfilEnum::VENDEDOR->value)
+            ->value('id');
+        $vendedorUsuarioId = DB::table('acesso_usuarios')
+            ->where('email', 'vendedor1@teste.com')
+            ->value('id');
+        $homePermissaoId = DB::table('acesso_permissoes')
+            ->where('slug', 'home.visualizar')
+            ->value('id');
+        $parceiroPermissaoId = DB::table('acesso_permissoes')
+            ->where('slug', 'parceiros.visualizar')
+            ->value('id');
+
+        DB::table('acesso_perfis')
+            ->where('id', $vendedorPerfilId)
+            ->update([
+                'descricao' => 'Descricao preservada',
+                'updated_at' => $oldTimestamp,
+            ]);
+
+        DB::table('acesso_permissoes')
+            ->where('id', $parceiroPermissaoId)
+            ->update([
+                'nome' => 'Nome preservado',
+                'descricao' => 'Descricao preservada',
+                'updated_at' => $oldTimestamp,
+            ]);
+
+        DB::table('acesso_usuarios')
+            ->where('id', $vendedorUsuarioId)
+            ->update([
+                'nome' => 'Usuario preservado',
+                'ativo' => false,
+                'updated_at' => $oldTimestamp,
+            ]);
+
+        DB::table('acesso_perfil_permissao')
+            ->where('id_perfil', $vendedorPerfilId)
+            ->where('id_permissao', $homePermissaoId)
+            ->update(['updated_at' => $oldTimestamp]);
+
+        DB::table('acesso_perfil_permissao')
+            ->where('id_perfil', $vendedorPerfilId)
+            ->where('id_permissao', $parceiroPermissaoId)
+            ->delete();
+
+        $service->runBootstrap();
+
+        $this->assertSame('Descricao preservada', DB::table('acesso_perfis')->where('id', $vendedorPerfilId)->value('descricao'));
+        $this->assertSame($oldTimestamp, (string) DB::table('acesso_perfis')->where('id', $vendedorPerfilId)->value('updated_at'));
+
+        $permissao = DB::table('acesso_permissoes')->where('id', $parceiroPermissaoId)->first();
+        $this->assertSame('Nome preservado', $permissao->nome);
+        $this->assertSame('Descricao preservada', $permissao->descricao);
+        $this->assertSame($oldTimestamp, (string) $permissao->updated_at);
+
+        $usuario = DB::table('acesso_usuarios')->where('id', $vendedorUsuarioId)->first();
+        $this->assertSame('Usuario preservado', $usuario->nome);
+        $this->assertFalse((bool) $usuario->ativo);
+        $this->assertSame($oldTimestamp, (string) $usuario->updated_at);
+
+        $this->assertSame(
+            $oldTimestamp,
+            (string) DB::table('acesso_perfil_permissao')
+                ->where('id_perfil', $vendedorPerfilId)
+                ->where('id_permissao', $homePermissaoId)
+                ->value('updated_at')
+        );
+
+        $this->assertDatabaseHas('acesso_perfil_permissao', [
+            'id_perfil' => $vendedorPerfilId,
+            'id_permissao' => $parceiroPermissaoId,
+        ]);
+    }
+
     public function test_seed_associacoes_atribui_permissoes_financeiras_e_conta_azul_ao_financeiro_sem_duplicar(): void
     {
         $service = new AccessInitialDataService();
@@ -48,6 +173,9 @@ class AccessInitialDataServiceTest extends TestCase
             'financeiro.lancamentos.editar',
             'financeiro.lancamentos.excluir',
             'financeiro.lancamentos.exportar',
+            'financeiro.relatorios.visualizar',
+            'financeiro.relatorios.exportar_excel',
+            'financeiro.relatorios.exportar_pdf',
             'despesas_recorrentes.visualizar',
             'despesas_recorrentes.criar',
             'despesas_recorrentes.editar',
@@ -63,6 +191,7 @@ class AccessInitialDataServiceTest extends TestCase
             'conta_azul.importar',
             'conta_azul.conciliar',
             'conta_azul.auditar',
+            'google_calendar.visualizar',
         ];
 
         $actualSlugs = DB::table('acesso_perfil_permissao')

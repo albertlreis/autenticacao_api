@@ -19,6 +19,14 @@ class AccessInitialDataService
         ];
 
         foreach ($steps as $label => $method) {
+            if ($method === 'seedUsuariosPadrao' && !$this->shouldSeedUsuariosPadrao()) {
+                if ($logger) {
+                    $logger($label . ' (pulados fora de local/testing)');
+                }
+
+                continue;
+            }
+
             if ($logger) {
                 $logger($label);
             }
@@ -26,6 +34,11 @@ class AccessInitialDataService
         }
 
         $this->refreshPermissoesCache();
+    }
+
+    public function shouldSeedUsuariosPadrao(): bool
+    {
+        return app()->environment(['local', 'testing']);
     }
 
     public function seedPerfis(): void
@@ -45,28 +58,24 @@ class AccessInitialDataService
             $row['updated_at'] = $now;
         }
 
-        DB::table('acesso_perfis')->upsert(
-            $rows,
-            ['nome'],
-            ['descricao', 'updated_at']
-        );
+        DB::table('acesso_perfis')->insertOrIgnore($rows);
     }
 
     public function seedPermissoes(): void
     {
         $now = now();
 
-        foreach ($this->permissoes() as $permissao) {
-            DB::table('acesso_permissoes')->updateOrInsert(
-                ['slug' => $permissao['slug']],
-                [
-                    'nome' => $permissao['nome'],
-                    'descricao' => $permissao['descricao'],
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]
-            );
-        }
+        $rows = collect($this->permissoes())
+            ->map(fn (array $permissao) => [
+                'slug' => $permissao['slug'],
+                'nome' => $permissao['nome'],
+                'descricao' => $permissao['descricao'],
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])
+            ->all();
+
+        DB::table('acesso_permissoes')->insertOrIgnore($rows);
     }
 
     public function seedUsuariosPadrao(): void
@@ -74,31 +83,21 @@ class AccessInitialDataService
         $now = now();
 
         foreach ($this->usuariosPadrao() as $usuario) {
-            $existente = DB::table('acesso_usuarios')
+            $existe = DB::table('acesso_usuarios')
                 ->where('email', $usuario['email'])
-                ->first();
+                ->exists();
 
-            $payload = [
-                'nome' => $usuario['nome'],
-                'ativo' => true,
-                'updated_at' => $now,
-            ];
-
-            if (!$existente) {
-                $payload += [
+            if (!$existe) {
+                DB::table('acesso_usuarios')->insert([
+                    'nome' => $usuario['nome'],
+                    'ativo' => true,
+                    'updated_at' => $now,
                     'email' => $usuario['email'],
                     'senha' => Hash::make($usuario['senha']),
                     'senha_alterada_em' => $now,
                     'created_at' => $now,
-                ];
-
-                DB::table('acesso_usuarios')->insert($payload);
-                continue;
+                ]);
             }
-
-            DB::table('acesso_usuarios')
-                ->where('id', $existente->id)
-                ->update($payload);
         }
     }
 
@@ -131,16 +130,7 @@ class AccessInitialDataService
                     continue;
                 }
 
-                DB::table('acesso_usuario_perfil')->updateOrInsert(
-                    [
-                        'id_usuario' => $usuario->id,
-                        'id_perfil' => $perfilId,
-                    ],
-                    [
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ]
-                );
+                $this->insertUsuarioPerfil((int) $usuario->id, (int) $perfilId, $now);
             }
 
             if ($financeiroPerfilId) {
@@ -153,17 +143,19 @@ class AccessInitialDataService
                         'financeiro.dashboard.visualizar',
                         'financeiro.lancamentos.visualizar', 'financeiro.lancamentos.criar', 'financeiro.lancamentos.editar',
                         'financeiro.lancamentos.excluir', 'financeiro.lancamentos.exportar',
+                        'financeiro.relatorios.visualizar', 'financeiro.relatorios.exportar_excel', 'financeiro.relatorios.exportar_pdf',
                         'despesas_recorrentes.visualizar', 'despesas_recorrentes.criar', 'despesas_recorrentes.editar',
                         'despesas_recorrentes.executar', 'despesas_recorrentes.cancelar',
                         'relatorios.visualizar', 'relatorios.exportar_excel', 'relatorios.exportar_pdf',
                         'home.visualizar', 'home.kpis',
                         'conta_azul.visualizar', 'conta_azul.configurar', 'conta_azul.importar',
                         'conta_azul.conciliar', 'conta_azul.auditar',
+                        'google_calendar.visualizar',
                     ])
                     ->pluck('id');
 
                 foreach ($financeiroPerms as $permissaoId) {
-                    $this->upsertPerfilPermissao($financeiroPerfilId, (int) $permissaoId, $now);
+                    $this->insertPerfilPermissao($financeiroPerfilId, (int) $permissaoId, $now);
                 }
             }
 
@@ -195,7 +187,7 @@ class AccessInitialDataService
                     ->pluck('id');
 
                 foreach ($estoquistaPerms as $permissaoId) {
-                    $this->upsertPerfilPermissao($estoquistaPerfilId, (int) $permissaoId, $now);
+                    $this->insertPerfilPermissao($estoquistaPerfilId, (int) $permissaoId, $now);
                 }
             }
 
@@ -203,7 +195,7 @@ class AccessInitialDataService
 
             foreach ($permissoes as $permissao) {
                 if ($devPerfilId) {
-                    $this->upsertPerfilPermissao($devPerfilId, (int) $permissao->id, $now);
+                    $this->insertPerfilPermissao($devPerfilId, (int) $permissao->id, $now);
                 }
 
                 if (
@@ -222,7 +214,7 @@ class AccessInitialDataService
                         'permissoes.excluir',
                     ], true)
                 ) {
-                    $this->upsertPerfilPermissao($adminPerfilId, (int) $permissao->id, $now);
+                    $this->insertPerfilPermissao($adminPerfilId, (int) $permissao->id, $now);
                 }
 
                 if (
@@ -257,10 +249,11 @@ class AccessInitialDataService
                             && $permissao->slug !== 'consignacoes.vencendo.todos'
                         )
                         || str_starts_with($permissao->slug, 'home.')
+                        || str_starts_with($permissao->slug, 'parceiros.')
                         || $permissao->slug === 'fornecedores.visualizar'
                     )
                 ) {
-                    $this->upsertPerfilPermissao($vendedorPerfilId, (int) $permissao->id, $now);
+                    $this->insertPerfilPermissao($vendedorPerfilId, (int) $permissao->id, $now);
                 }
             }
         });
@@ -271,18 +264,24 @@ class AccessInitialDataService
         Artisan::call('permissao:refresh-cache');
     }
 
-    private function upsertPerfilPermissao(int $perfilId, int $permissaoId, \Illuminate\Support\Carbon $now): void
+    private function insertUsuarioPerfil(int $usuarioId, int $perfilId, \Illuminate\Support\Carbon $now): void
     {
-        DB::table('acesso_perfil_permissao')->updateOrInsert(
-            [
-                'id_perfil' => $perfilId,
-                'id_permissao' => $permissaoId,
-            ],
-            [
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]
-        );
+        DB::table('acesso_usuario_perfil')->insertOrIgnore([
+            'id_usuario' => $usuarioId,
+            'id_perfil' => $perfilId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function insertPerfilPermissao(int $perfilId, int $permissaoId, \Illuminate\Support\Carbon $now): void
+    {
+        DB::table('acesso_perfil_permissao')->insertOrIgnore([
+            'id_perfil' => $perfilId,
+            'id_permissao' => $permissaoId,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
     }
 
     private function usuariosPadrao(): array
@@ -346,6 +345,7 @@ class AccessInitialDataService
             ['slug' => 'produtos.excluir', 'nome' => 'Produtos: Excluir', 'descricao' => 'Permite excluir produtos'],
             ['slug' => 'produtos.importar', 'nome' => 'Produtos: Importar XML', 'descricao' => 'Permite importar produtos via XML de nota fiscal'],
             ['slug' => 'produtos.catalogo', 'nome' => 'Produtos: Ver Catálogo', 'descricao' => 'Permite visualizar o catálogo de produtos'],
+            ['slug' => 'produtos.precos_custos', 'nome' => 'Produtos: Preços e Custos', 'descricao' => 'Permite acessar e gerenciar preços e custos dos produtos'],
             ['slug' => 'produtos.outlet', 'nome' => 'Produtos: Ver Outlet', 'descricao' => 'Permite acessar produtos em outlet'],
             ['slug' => 'produtos.outlet.cadastrar', 'nome' => 'Outlet: Cadastrar', 'descricao' => 'Permite cadastrar produtos no outlet'],
             ['slug' => 'produtos.outlet.editar', 'nome' => 'Outlet: Editar', 'descricao' => 'Permite editar dados de outlet de um produto'],
@@ -397,6 +397,7 @@ class AccessInitialDataService
             ['slug' => 'consignacoes.gerenciar', 'nome' => 'Consignações: Gerenciar', 'descricao' => 'Permite alterar status e devolver itens'],
             ['slug' => 'consignacoes.vencendo.todos', 'nome' => 'Consignações: Vencendo (Todos)', 'descricao' => 'Permite visualizar consignações vencendo de todos os usuários'],
             ['slug' => 'monitoramento.visualizar', 'nome' => 'Monitoramento: Visualizar', 'descricao' => 'Permite visualizar métricas do sistema.'],
+            ['slug' => 'auditoria.logs.visualizar', 'nome' => 'Auditoria: Logs', 'descricao' => 'Permite visualizar auditoria e logs unificados do sistema.'],
             ['slug' => 'assistencias.visualizar', 'nome' => 'Assistências: Visualizar', 'descricao' => 'Permite visualizar assistências.'],
             ['slug' => 'assistencias.gerenciar', 'nome' => 'Assistências: Gerenciar', 'descricao' => 'Permite gerenciar assistências autorizadas.'],
             ['slug' => 'contas.pagar.view', 'nome' => 'Contas a Pagar: Visualizar', 'descricao' => 'Visualizar contas a pagar'],
@@ -421,11 +422,20 @@ class AccessInitialDataService
             ['slug' => 'financeiro.lancamentos.excluir', 'nome' => 'Financeiro: Lançamentos - Excluir', 'descricao' => 'Permite excluir lançamentos'],
             ['slug' => 'financeiro.lancamentos.exportar', 'nome' => 'Financeiro: Lançamentos - Exportar', 'descricao' => 'Permite exportar lançamentos'],
             ['slug' => 'financeiro.dashboard.visualizar', 'nome' => 'Financeiro: Dashboard - Visualizar', 'descricao' => 'Permite visualizar dashboard financeiro'],
+            ['slug' => 'financeiro.relatorios.visualizar', 'nome' => 'Financeiro: Relatórios - Visualizar', 'descricao' => 'Permite visualizar relatórios financeiros'],
+            ['slug' => 'financeiro.relatorios.exportar_excel', 'nome' => 'Financeiro: Relatórios - Exportar Excel', 'descricao' => 'Permite exportar relatórios financeiros em Excel'],
+            ['slug' => 'financeiro.relatorios.exportar_pdf', 'nome' => 'Financeiro: Relatórios - Exportar PDF', 'descricao' => 'Permite exportar relatórios financeiros em PDF'],
             ['slug' => 'conta_azul.visualizar', 'nome' => 'Conta Azul: Visualizar', 'descricao' => 'Permite acessar a integraÃ§Ã£o Conta Azul'],
             ['slug' => 'conta_azul.configurar', 'nome' => 'Conta Azul: Configurar', 'descricao' => 'Permite configurar OAuth, token manual e teste de conexÃ£o'],
             ['slug' => 'conta_azul.importar', 'nome' => 'Conta Azul: Importar', 'descricao' => 'Permite importar dados da Conta Azul para staging'],
             ['slug' => 'conta_azul.conciliar', 'nome' => 'Conta Azul: Conciliar', 'descricao' => 'Permite conciliar e resolver pendÃªncias da Conta Azul'],
             ['slug' => 'conta_azul.auditar', 'nome' => 'Conta Azul: Auditar', 'descricao' => 'Permite consultar batches e logs da Conta Azul'],
+            ['slug' => 'google_calendar.visualizar', 'nome' => 'Google Agenda: Visualizar', 'descricao' => 'Permite acessar o painel da Google Agenda'],
+            ['slug' => 'google_calendar.configurar', 'nome' => 'Google Agenda: Configurar', 'descricao' => 'Permite conectar conta Google e habilitar agendas'],
+            ['slug' => 'google_calendar.criar', 'nome' => 'Google Agenda: Criar', 'descricao' => 'Permite criar eventos e reunioes na Google Agenda'],
+            ['slug' => 'google_calendar.editar', 'nome' => 'Google Agenda: Editar', 'descricao' => 'Permite editar eventos da Google Agenda'],
+            ['slug' => 'google_calendar.cancelar', 'nome' => 'Google Agenda: Cancelar', 'descricao' => 'Permite cancelar eventos da Google Agenda'],
+            ['slug' => 'google_calendar.auditar', 'nome' => 'Google Agenda: Auditar', 'descricao' => 'Permite consultar logs da integracao Google Agenda'],
             ['slug' => 'despesas_recorrentes.visualizar', 'nome' => 'Despesas Recorrentes: Visualizar', 'descricao' => 'Permite listar e visualizar despesas recorrentes'],
             ['slug' => 'despesas_recorrentes.criar', 'nome' => 'Despesas Recorrentes: Criar', 'descricao' => 'Permite cadastrar despesas recorrentes'],
             ['slug' => 'despesas_recorrentes.editar', 'nome' => 'Despesas Recorrentes: Editar', 'descricao' => 'Permite editar despesas recorrentes'],

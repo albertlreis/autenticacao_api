@@ -28,7 +28,7 @@ return [
     | sending an e-mail. You will specify which one you are using for your
     | mailers below. You are free to add additional mailers as required.
     |
-    | Supported: "smtp", "sendmail", "mailgun", "ses",
+    | Supported: "smtp", "sendmail", "mailgun", "ses", "ses-v2",
     |            "postmark", "log", "array", "failover"
     |
     */
@@ -47,6 +47,13 @@ return [
 
         'ses' => [
             'transport' => 'ses',
+        ],
+
+        'ses-v2' => [
+            'transport' => 'ses-v2',
+            'options' => array_filter([
+                'ConfigurationSetName' => env('SES_CONFIGURATION_SET'),
+            ], fn ($value) => $value !== null && $value !== ''),
         ],
 
         'mailgun' => [
@@ -94,6 +101,11 @@ return [
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', 'Example'),
+    ],
+
+    'reply_to' => [
+        'address' => env('MAIL_REPLY_TO_ADDRESS'),
+        'name' => env('MAIL_REPLY_TO_NAME'),
     ],
 
     /*

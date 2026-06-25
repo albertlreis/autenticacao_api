@@ -2,7 +2,7 @@
 set -eu
 
 mkdir -p \
-  /var/www/html/storage/framework/cache \
+  /var/www/html/storage/framework/cache/data \
   /var/www/html/storage/framework/sessions \
   /var/www/html/storage/framework/testing \
   /var/www/html/storage/framework/views \
@@ -10,6 +10,7 @@ mkdir -p \
   /var/www/html/bootstrap/cache
 
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+chmod -R ug+rwX /var/www/html/storage /var/www/html/bootstrap/cache
 
 php artisan storage:link >/dev/null 2>&1 || true
 
@@ -20,4 +21,3 @@ if [ "${APP_ENV:-production}" = "production" ]; then
 fi
 
 exec "$@"
-

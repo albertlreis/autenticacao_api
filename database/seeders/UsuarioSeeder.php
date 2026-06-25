@@ -9,6 +9,14 @@ class UsuarioSeeder extends Seeder
 {
     public function run(): void
     {
-        app(AccessInitialDataService::class)->seedUsuariosPadrao();
+        $service = app(AccessInitialDataService::class);
+
+        if (!$service->shouldSeedUsuariosPadrao()) {
+            $this->command?->warn('Usuarios padrao pulados fora de local/testing.');
+
+            return;
+        }
+
+        $service->seedUsuariosPadrao();
     }
 }
