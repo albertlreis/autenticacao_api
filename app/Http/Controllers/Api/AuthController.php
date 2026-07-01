@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\AcessoRefreshToken;
 use App\Models\AcessoUsuario;
 use App\Services\PermissoesCacheService;
+use App\Support\Logging\SierraLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
@@ -113,7 +113,10 @@ class AuthController extends Controller
         try {
             $permissoes = $this->permissoesCache->get($user);
         } catch (Throwable $e) {
-            Log::error("Erro ao carregar permissões do usuário [{$user->id}]: ".$e->getMessage());
+            SierraLog::auth('auth.permissions.load_failed', [
+                'user_id' => $user->id,
+                'exception' => $e,
+            ], 'error');
         }
 
         return [
@@ -318,7 +321,11 @@ class AuthController extends Controller
             $permissoes = $this->permissoesCache->get($usuario);
         } catch (Throwable $e) {
             $permissoes = [];
-            Log::error("Erro ao cachear permissões no login [$usuario->id]: ".$e->getMessage());
+            SierraLog::auth('auth.permissions.cache_failed', [
+                'user_id' => $usuario->id,
+                'operation' => 'login',
+                'exception' => $e,
+            ], 'error');
         }
 
         return response()

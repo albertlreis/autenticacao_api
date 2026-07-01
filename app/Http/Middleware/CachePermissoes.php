@@ -2,11 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Logging\SierraLog;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 
 class CachePermissoes
 {
@@ -29,7 +29,11 @@ class CachePermissoes
 
                     Cache::put($cacheKey, $permissoes, now()->addHours(6));
                 } catch (\Throwable $e) {
-                    Log::error("Erro ao salvar cache de permissões no middleware [{$user->id}]: " . $e->getMessage());
+                    SierraLog::auth('auth.permissions.cache_write_failed', [
+                        'user_id' => $user->id,
+                        'operation' => 'middleware_cache',
+                        'exception' => $e,
+                    ], 'error');
                 }
             }
         }
