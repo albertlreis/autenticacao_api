@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
+use App\Support\Logging\SierraLog;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -38,8 +38,8 @@ class AppServiceProvider extends ServiceProvider
             DB::statement("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_0900_ai_ci'");
         } catch (QueryException|\PDOException $e) {
             if (!$this->app->environment('testing')) {
-                Log::warning('Não foi possível aplicar charset/collation MySQL no boot.', [
-                    'message' => $e->getMessage(),
+                SierraLog::system('system.mysql.charset_failed', [
+                    'exception' => $e,
                 ]);
             }
         }

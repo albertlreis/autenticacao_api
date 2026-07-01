@@ -11,9 +11,9 @@ use App\Models\AcessoPerfil;
 use App\Models\AcessoUsuario;
 use App\Services\PermissoesCacheService;
 use App\Services\UsuarioService;
+use App\Support\Logging\SierraLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class UsuarioController extends Controller
@@ -173,11 +173,12 @@ class UsuarioController extends Controller
             $usuario = $this->service->criar($request->validated());
             return response()->json(new UsuarioResource($usuario), 201);
         } catch (Throwable $e) {
-            Log::error('Falha ao criar usuario', [
+            SierraLog::auth('auth.user.create_failed', [
                 'email' => $request->input('email'),
                 'nome' => $request->input('nome'),
-                'erro' => $e->getMessage(),
-            ]);
+                'operation' => 'create',
+                'exception' => $e,
+            ], 'error');
             return response()->json(['message' => 'Falha ao criar usuario.'], 500);
         }
     }
@@ -211,10 +212,12 @@ class UsuarioController extends Controller
             $usuario = $this->service->atualizar($usuario, $request->validated());
             return response()->json(new UsuarioResource($usuario));
         } catch (Throwable $e) {
-            Log::error('Falha ao atualizar usuario', [
-                'usuario_id' => $usuario->id,
-                'erro' => $e->getMessage(),
-            ]);
+            SierraLog::auth('auth.user.update_failed', [
+                'entity_type' => 'acesso_usuario',
+                'entity_id' => $usuario->id,
+                'operation' => 'update',
+                'exception' => $e,
+            ], 'error');
             return response()->json(['message' => 'Falha ao atualizar usuario.'], 500);
         }
     }
@@ -289,10 +292,11 @@ class UsuarioController extends Controller
         try {
             $permissoes = $this->permissoesCache->get($user);
         } catch (Throwable $e) {
-            Log::error('Falha ao carregar permissoes do usuario', [
-                'usuario_id' => $user->id,
-                'erro' => $e->getMessage(),
-            ]);
+            SierraLog::auth('auth.permissions.load_failed', [
+                'user_id' => $user->id,
+                'operation' => 'authorize',
+                'exception' => $e,
+            ], 'error');
             $permissoes = [];
         }
 
