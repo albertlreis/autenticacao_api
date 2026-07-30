@@ -50,26 +50,26 @@ jobs:
           extensions: bcmath, exif, gd, intl, pdo_mysql, zip
           tools: composer:v2
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Resolve Composer cache
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
         with:
-          node-version: 20
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
 
       - name: Prepare environment
         run: |
           cp .env.testing.example .env.testing
           composer install --no-interaction --prefer-dist
-          npm install
-
-      - name: Run migrations
-        env:
-          APP_ENV: testing
-        run: php artisan migrate --env=testing --force
 
       - name: Run tests
         env:
           APP_ENV: testing
-        run: php artisan test
+        run: composer test:full
 
   deploy:
     needs: test

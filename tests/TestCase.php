@@ -26,6 +26,6 @@ abstract class TestCase extends BaseTestCase
 
     protected function runSharedMigrations(): void
     {
-        $this->artisan('migrate:fresh', ['--force' => true]);
+        $this->artisan('migrate', ['--force' => true]);
     }
 }
