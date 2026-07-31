@@ -26,6 +26,15 @@ abstract class TestCase extends BaseTestCase
 
     protected function runSharedMigrations(): void
     {
-        $this->artisan('migrate', ['--force' => true]);
+        $connection = (string) config('database.default');
+        $database = (string) config("database.connections.{$connection}.database");
+
+        if ($database === '' || !str_ends_with($database, '_test')) {
+            throw new \LogicException(
+                "A suíte só pode recriar bancos dedicados com sufixo _test; recebido: '{$database}'."
+            );
+        }
+
+        $this->artisan('migrate:fresh', ['--force' => true]);
     }
 }
