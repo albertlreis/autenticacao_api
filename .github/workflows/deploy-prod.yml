@@ -87,6 +87,8 @@ jobs:
       SIERRA_AUTH_AWS_SECRET_ACCESS_KEY: ${{ secrets.SIERRA_AUTH_AWS_SECRET_ACCESS_KEY }}
       SIERRA_AUTH_AWS_DEFAULT_REGION: ${{ secrets.SIERRA_AUTH_AWS_DEFAULT_REGION }}
       SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL: https://sierra.acadsoft.com.br
+      SIERRA_AUTH_APP_ENV: production
+      SIERRA_AUTH_APP_DEBUG: 'false'
 
     steps:
       - name: Start ssh-agent
@@ -120,6 +122,8 @@ jobs:
             SIERRA_AUTH_AWS_SECRET_ACCESS_KEY
             SIERRA_AUTH_AWS_DEFAULT_REGION
             SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL
+            SIERRA_AUTH_APP_ENV
+            SIERRA_AUTH_APP_DEBUG
           )
 
           for name in "${required_env[@]}"; do
@@ -144,8 +148,18 @@ jobs:
 
             APP_DIR=/home/docker/acadsoft/sierra-auth
             HOST_ENV_FILE="${APP_DIR}/html/.env"
+            COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
             CONTAINER_NAME=sierra_auth_app
+            NGINX_CONTAINER_NAME=sierra_auth_nginx
             BACKUP_SCRIPT=/home/docker/acadsoft/sierra-estoque/html/scripts/backup-production.sh
+
+            compose() {
+              if command -v docker-compose >/dev/null 2>&1; then
+                docker-compose -f "$COMPOSE_FILE" "$@"
+              else
+                docker compose -f "$COMPOSE_FILE" "$@"
+              fi
+            }
 
             decode() {
               printf '%s' "$1" | base64 -d
@@ -155,16 +169,41 @@ jobs:
               file="$1"
               key="$2"
               value="$(decode "$3")"
-              tmp="$(mktemp)"
+              tmp="$(mktemp "${file}.tmp.XXXXXX")"
 
               mkdir -p "$(dirname "$file")"
               touch "$file"
               grep -v -E "^${key}=" "$file" > "$tmp" || true
-              {
-                cat "$tmp"
-                printf '%s=%s\n' "$key" "$value"
-              } > "$file"
-              rm -f "$tmp"
+              printf '%s=%s\n' "$key" "$value" >> "$tmp"
+              chmod --reference="$file" "$tmp"
+              chown --reference="$file" "$tmp"
+              mv -f "$tmp" "$file"
+            }
+
+            backup_env_file() {
+              file="$1"
+              backup_dir="${APP_DIR}/backups/env"
+              timestamp="$(date -u '+%Y%m%dT%H%M%SZ')"
+              backup_file="${backup_dir}/auth.env.${timestamp}"
+
+              if [ ! -f "$file" ]; then
+                echo "Environment file not found: $file"
+                exit 1
+              fi
+
+              mkdir -p "$backup_dir"
+              chmod 700 "$backup_dir"
+              install -m 600 "$file" "$backup_file"
+              printf 'Environment backup created: %s (sha256=%s)\n' \
+                "$backup_file" \
+                "$(sha256sum "$backup_file" | cut -d ' ' -f 1)"
+            }
+
+            apply_runtime_env() {
+              file="$1"
+
+              update_env_file "$file" APP_ENV "$SIERRA_AUTH_APP_ENV_B64"
+              update_env_file "$file" APP_DEBUG "$SIERRA_AUTH_APP_DEBUG_B64"
             }
 
             apply_mail_env() {
@@ -202,6 +241,8 @@ jobs:
 
             "$BACKUP_SCRIPT"
 
+            backup_env_file "$HOST_ENV_FILE"
+            apply_runtime_env "$HOST_ENV_FILE"
             apply_mail_env "$HOST_ENV_FILE"
 
             cd "$APP_DIR"
@@ -212,9 +253,12 @@ jobs:
             fi
 
             install_dependencies
+            apply_runtime_env "$HOST_ENV_FILE"
             apply_mail_env "$HOST_ENV_FILE"
             docker cp "$HOST_ENV_FILE" "${CONTAINER_NAME}:/var/www/html/.env"
             docker restart "$CONTAINER_NAME"
+            compose up -d --no-deps nginx
+            docker update --restart always "$CONTAINER_NAME" "$NGINX_CONTAINER_NAME" >/dev/null
             sleep 5
 
             docker exec "$CONTAINER_NAME" sh -lc '
@@ -240,8 +284,29 @@ jobs:
               php -r "require \"vendor/autoload.php\"; exit(class_exists(\"Aws\\\\SesV2\\\\SesV2Client\") ? 0 : 1);"
               php artisan optimize:clear
               php artisan config:cache
+
+              test -f /var/www/html/bootstrap/cache/config.php
+              if ! php -r "\$config = require \"bootstrap/cache/config.php\"; \$env = \$config[\"app\"][\"env\"] ?? null; \$debug = \$config[\"app\"][\"debug\"] ?? true; exit(\$env === \"production\" && \$debug === false ? 0 : 1);"; then
+                echo "Unsafe Laravel runtime: production environment and disabled debug are required."
+                exit 1
+              fi
+
               php artisan route:cache
               php artisan view:cache
               php artisan app:setup-initial-data
             '
+
+            for attempt in $(seq 1 15); do
+              health_response="$(curl -fsS --max-time 10 https://auth.sierra.acadsoft.com.br/api/v1/health || true)"
+              if printf '%s' "$health_response" | grep -Fq '"status":"ok"' \
+                && printf '%s' "$health_response" | grep -Fq '"service":"autenticacao-api"'; then
+                echo "Authentication public health is healthy."
+                exit 0
+              fi
+
+              sleep 2
+            done
+
+            echo "Authentication public health did not become healthy."
+            exit 1
           REMOTE
