@@ -151,6 +151,7 @@ class AccessInitialDataService
                         'conta_azul.visualizar', 'conta_azul.configurar', 'conta_azul.importar',
                         'conta_azul.conciliar', 'conta_azul.auditar',
                         'google_calendar.visualizar',
+                        'comunicacao.visualizar',
                     ])
                     ->pluck('id');
 
@@ -446,6 +447,7 @@ class AccessInitialDataService
             ['slug' => 'comunicacao.templates', 'nome' => 'Comunicação: Templates', 'descricao' => 'Permite criar/editar templates e gerar preview'],
             ['slug' => 'comunicacao.requests.cancelar', 'nome' => 'Comunicação: Cancelar Request', 'descricao' => 'Permite cancelar requests pendentes'],
             ['slug' => 'comunicacao.messages.retry', 'nome' => 'Comunicação: Retry Mensagem', 'descricao' => 'Permite reprocessar mensagens com falha'],
+            ['slug' => 'comunicacao.reprocessar', 'nome' => 'Comunicação: Reprocessar', 'descricao' => 'Permite solicitar nova tentativa manual de uma mensagem com falha'],
         ];
     }
 }

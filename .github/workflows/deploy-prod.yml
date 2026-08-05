@@ -310,3 +310,18 @@ jobs:
             echo "Authentication public health did not become healthy."
             exit 1
           REMOTE
+
+      - name: Verify shared production services
+        run: |
+          curl --fail --show-error --silent --location \
+            --connect-timeout 10 --max-time 20 \
+            https://sierra.acadsoft.com.br/ >/dev/null
+
+          estoque_health="$(curl --fail --show-error --silent --location \
+            --connect-timeout 10 --max-time 20 \
+            https://estoque.sierra.acadsoft.com.br/api/v1/health)"
+
+          printf '%s' "${estoque_health}" | grep -Eq \
+            '"status"[[:space:]]*:[[:space:]]*"ok"'
+          printf '%s' "${estoque_health}" | grep -Eq \
+            '"service"[[:space:]]*:[[:space:]]*"gerenciador-estoque-api"'
