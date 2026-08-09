@@ -23,6 +23,7 @@ class PasswordResetTest extends TestCase
     {
         Notification::fake();
         config(['acesso.password_reset_frontend_url' => 'https://sierra.acadsoft.com.br']);
+        config(['acesso.password_reset_logo_url' => 'https://sierra.acadsoft.com.br/logo.png']);
 
         $usuario = AcessoUsuario::create([
             'nome' => 'Usuario Reset',
@@ -48,6 +49,9 @@ class PasswordResetTest extends TestCase
                     && $mail->view === 'emails.password-reset'
                     && str_contains((string) $mail->viewData['resetUrl'], 'https://sierra.acadsoft.com.br/resetar-senha?')
                     && str_contains((string) $mail->viewData['resetUrl'], 'email=reset%40example.test')
+                    && $mail->viewData['logoUrl'] === 'https://sierra.acadsoft.com.br/logo.png'
+                    && str_contains($html, 'src="https://sierra.acadsoft.com.br/logo.png"')
+                    && ! str_contains($html, 'localhost')
                     && str_contains($html, 'Sierra Móveis')
                     && str_contains($html, 'Recebemos uma solicitação para redefinir a senha da sua conta na Sierra Móveis.')
                     && ! str_contains($html, 'Regards')
@@ -55,6 +59,20 @@ class PasswordResetTest extends TestCase
                     && $notification->token !== '';
             }
         );
+    }
+
+    public function test_notificacao_usa_frontend_local_na_porta_5173(): void
+    {
+        config(['acesso.password_reset_frontend_url' => 'http://localhost:5173']);
+        config(['acesso.password_reset_logo_url' => 'https://sierra.acadsoft.com.br/logo.png']);
+
+        $usuario = (object) ['email' => 'local@example.test'];
+        $mail = (new ResetPasswordNotification('token-local'))->toMail($usuario);
+
+        $this->assertStringStartsWith('http://localhost:5173/resetar-senha?', $mail->viewData['resetUrl']);
+        $this->assertStringContainsString('token=token-local', $mail->viewData['resetUrl']);
+        $this->assertStringContainsString('email=local%40example.test', $mail->viewData['resetUrl']);
+        $this->assertStringNotContainsString('localhost:3000', $mail->viewData['resetUrl']);
     }
 
     public function test_email_inexistente_retorna_mensagem_generica_e_nao_envia_notificacao(): void

@@ -16,7 +16,11 @@ class ResetPasswordNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $frontendUrl = rtrim((string) config('acesso.password_reset_frontend_url', 'http://localhost:3000'), '/');
+        $frontendUrl = rtrim((string) config('acesso.password_reset_frontend_url', 'http://localhost:5173'), '/');
+        $logoUrl = (string) config('acesso.password_reset_logo_url', '');
+        if ($logoUrl === '') {
+            $logoUrl = $frontendUrl . '/logo.png';
+        }
         $email = method_exists($notifiable, 'getEmailForPasswordReset')
             ? $notifiable->getEmailForPasswordReset()
             : $notifiable->email;
@@ -30,7 +34,7 @@ class ResetPasswordNotification extends Notification
             ->subject('Redefinir senha - Sierra Móveis')
             ->view('emails.password-reset', [
                 'brandName' => 'Sierra Móveis',
-                'logoUrl' => $frontendUrl . '/logo.png',
+                'logoUrl' => $logoUrl,
                 'resetUrl' => $url,
                 'expirationMinutes' => 60,
             ]);
