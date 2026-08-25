@@ -35,8 +35,9 @@ echo "SELECT COUNT(*) FROM acesso_usuarios WHERE email IN (".implode(",", $quote
 ' "$audit_file" > "$candidate_sql"
 chmod 600 "$candidate_sql"
 
+echo "Criando dump transacional produtivo..."
 ssh -o BatchMode=yes sierra-prod \
-  'docker exec mysql_server mysqldump -uroot --password=$(docker exec mysql_server printenv MYSQL_ROOT_PASSWORD) --single-transaction --quick --routines --triggers --events --set-gtid-purged=OFF sierra' \
+  'docker exec -e "MYSQL_PWD=$(docker exec mysql_server printenv MYSQL_ROOT_PASSWORD)" mysql_server mysqldump -uroot --single-transaction --quick --routines --triggers --events --set-gtid-purged=OFF sierra' \
   | gzip -9 > "$tmp_dump"
 gzip -t "$tmp_dump"
 mv "$tmp_dump" "$dump_file"
@@ -49,7 +50,8 @@ docker run -d --name "$restore_name" \
 
 ready=0
 for _ in $(seq 1 45); do
-  if docker logs "$restore_name" 2>&1 | grep -q 'MySQL init process done'; then
+  if docker exec -e MYSQL_PWD=restore-only-password "$restore_name" \
+    mysql -uroot -Nse 'SELECT 1' >/dev/null 2>&1; then
     ready=1
     break
   fi
@@ -57,9 +59,10 @@ for _ in $(seq 1 45); do
 done
 [[ "$ready" -eq 1 ]] || { echo "Instância isolada não ficou pronta." >&2; exit 66; }
 
-gzip -dc "$dump_file" | docker exec -i "$restore_name" mysql -uroot -prestore-only-password sierra_restore
-candidate_count="$(docker exec -i "$restore_name" mysql -uroot -prestore-only-password -N sierra_restore < "$candidate_sql")"
-table_count="$(docker exec "$restore_name" mysql -uroot -prestore-only-password -Nse \
+echo "Restaurando dump na instância isolada..."
+gzip -dc "$dump_file" | docker exec -i -e MYSQL_PWD=restore-only-password "$restore_name" mysql -uroot sierra_restore
+candidate_count="$(docker exec -i -e MYSQL_PWD=restore-only-password "$restore_name" mysql -uroot -N sierra_restore < "$candidate_sql")"
+table_count="$(docker exec -e MYSQL_PWD=restore-only-password "$restore_name" mysql -uroot -Nse \
   "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='sierra_restore'" sierra_restore)"
 [[ "$candidate_count" -eq 7 ]] || { echo "Clone restaurado não contém os sete candidatos." >&2; exit 67; }
 [[ "$table_count" -gt 0 ]] || { echo "Clone restaurado não contém tabelas." >&2; exit 68; }
