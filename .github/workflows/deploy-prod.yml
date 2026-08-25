@@ -222,14 +222,12 @@ jobs:
             }
 
             install_dependencies() {
-              if command -v composer >/dev/null 2>&1; then
-                (cd "${APP_DIR}/html" && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader)
-              else
-                docker run --rm -v "${APP_DIR}/html:/app" -w /app composer:2 \
-                  composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
-              fi
-
-              docker cp "${APP_DIR}/html/vendor" "${CONTAINER_NAME}:/var/www/html/vendor"
+              docker exec "$CONTAINER_NAME" composer install \
+                --working-dir=/var/www/html \
+                --no-dev \
+                --no-interaction \
+                --prefer-dist \
+                --optimize-autoloader
             }
 
             deploy_args="$(decode "$DEPLOY_ARGS_B64")"
