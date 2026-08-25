@@ -101,6 +101,19 @@ class AccessInitialDataService
         }
     }
 
+    public function identidadesUsuariosPadrao(): array
+    {
+        return [
+            ['nome' => 'Dev Master', 'email' => 'dev@teste.com', 'perfil' => PerfilEnum::DESENVOLVEDOR->value],
+            ['nome' => 'Admin Teste', 'email' => 'admin@teste.com', 'perfil' => PerfilEnum::ADMINISTRADOR->value],
+            ['nome' => 'Vendedor 1', 'email' => 'vendedor1@teste.com', 'perfil' => PerfilEnum::VENDEDOR->value],
+            ['nome' => 'Vendedor 2', 'email' => 'vendedor2@teste.com', 'perfil' => PerfilEnum::VENDEDOR->value],
+            ['nome' => 'Vendedor 3', 'email' => 'vendedor3@teste.com', 'perfil' => PerfilEnum::VENDEDOR->value],
+            ['nome' => 'Financeiro Operador', 'email' => 'financeiro@teste.com', 'perfil' => PerfilEnum::FINANCEIRO->value],
+            ['nome' => 'Estoquista', 'email' => 'estoquista@teste.com', 'perfil' => PerfilEnum::ESTOQUISTA->value],
+        ];
+    }
+
     public function seedAssociacoes(): void
     {
         DB::transaction(function () {
@@ -287,15 +300,14 @@ class AccessInitialDataService
 
     private function usuariosPadrao(): array
     {
-        return [
-            ['nome' => 'Dev Master', 'email' => 'dev@teste.com', 'senha' => 'senha123'],
-            ['nome' => 'Admin Teste', 'email' => 'admin@teste.com', 'senha' => 'senha123'],
-            ['nome' => 'Vendedor 1', 'email' => 'vendedor1@teste.com', 'senha' => 'senha123'],
-            ['nome' => 'Vendedor 2', 'email' => 'vendedor2@teste.com', 'senha' => 'senha123'],
-            ['nome' => 'Vendedor 3', 'email' => 'vendedor3@teste.com', 'senha' => 'senha123'],
-            ['nome' => 'Financeiro Operador', 'email' => 'financeiro@teste.com', 'senha' => 'senha123'],
-            ['nome' => 'Estoquista', 'email' => 'estoquista@teste.com', 'senha' => 'senha123'],
-        ];
+        return array_map(
+            fn (array $identidade) => [
+                'nome' => $identidade['nome'],
+                'email' => $identidade['email'],
+                'senha' => 'senha123',
+            ],
+            $this->identidadesUsuariosPadrao(),
+        );
     }
 
     private function permissoes(): array
