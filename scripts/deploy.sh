@@ -115,6 +115,26 @@ PHP
   "
 }
 
+verify_storage_link() {
+  log "Validando link publico de storage..."
+  compose exec -T "$SERVICE" bash -lc '
+    set -e
+    link_path=/var/www/html/public/storage
+    expected_target=/var/www/html/storage/app/public
+    if [[ -L "$link_path" ]]; then
+      [[ "$(readlink -f "$link_path")" == "$expected_target" ]]
+    elif [[ -e "$link_path" ]]; then
+      echo "public/storage existe e nao e um link simbolico" >&2
+      exit 1
+    else
+      php artisan storage:link
+    fi
+    [[ -L "$link_path" ]]
+    [[ "$(readlink -f "$link_path")" == "$expected_target" ]]
+    [[ -d "$link_path" ]]
+  '
+}
+
 [[ -d "$APP_DIR" ]] || { echo "APP_DIR não encontrado: $APP_DIR"; exit 1; }
 [[ -f "$COMPOSE_FILE" ]] || { echo "docker-compose.yml não encontrado"; exit 1; }
 
@@ -187,6 +207,7 @@ artisan route:cache
 log "Gerando view cache..."
 artisan view:cache
 
+verify_storage_link
 verify_file_cache
 
 if $DO_MIGRATE; then

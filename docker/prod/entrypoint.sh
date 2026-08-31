@@ -6,6 +6,7 @@ mkdir -p \
   /var/www/html/storage/framework/sessions \
   /var/www/html/storage/framework/testing \
   /var/www/html/storage/framework/views \
+  /var/www/html/storage/app/public \
   /var/www/html/storage/logs \
   /var/www/html/bootstrap/cache
 
@@ -24,8 +25,26 @@ esac
   exit 1
 }
 
-php artisan storage:link
-test -L /var/www/html/public/storage
+link_path=/var/www/html/public/storage
+expected_target=/var/www/html/storage/app/public
+
+if [ -L "$link_path" ]; then
+  actual_target="$(readlink -f "$link_path")"
+  [ "$actual_target" = "$expected_target" ] || {
+    echo "Refusing to start: public/storage points to $actual_target, expected $expected_target." >&2
+    exit 1
+  }
+elif [ -e "$link_path" ]; then
+  echo "Refusing to start: public/storage exists and is not a symbolic link." >&2
+  exit 1
+else
+  php artisan storage:link
+fi
+
+[ -L "$link_path" ] && [ "$(readlink -f "$link_path")" = "$expected_target" ] || {
+  echo "Refusing to start: public/storage link is unavailable or invalid." >&2
+  exit 1
+}
 
 php artisan config:cache
 php artisan route:cache
