@@ -1,6 +1,9 @@
 name: Deploy Production
 
 on:
+  pull_request:
+    branches:
+      - master
   push:
     branches:
       - master
@@ -72,6 +75,7 @@ jobs:
         run: composer test:full
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
     environment: production
@@ -255,7 +259,8 @@ jobs:
             apply_mail_env "$HOST_ENV_FILE"
             docker cp "$HOST_ENV_FILE" "${CONTAINER_NAME}:/var/www/html/.env"
             docker restart "$CONTAINER_NAME"
-            compose up -d --no-deps nginx
+            install -m 644 "$APP_DIR/html/docker/prod/nginx.conf" "$APP_DIR/nginx.conf"
+            compose up -d --no-deps --force-recreate nginx
             docker update --restart always "$CONTAINER_NAME" "$NGINX_CONTAINER_NAME" >/dev/null
             sleep 5
 
@@ -282,6 +287,9 @@ jobs:
               php -r "require \"vendor/autoload.php\"; exit(class_exists(\"Aws\\\\SesV2\\\\SesV2Client\") ? 0 : 1);"
               php artisan optimize:clear
               php artisan config:cache
+              php artisan storage:link
+              test -L /var/www/html/public/storage
+              test -d /var/www/html/public/storage
 
               test -f /var/www/html/bootstrap/cache/config.php
               if ! php -r "\$config = require \"bootstrap/cache/config.php\"; \$env = \$config[\"app\"][\"env\"] ?? null; \$debug = \$config[\"app\"][\"debug\"] ?? true; exit(\$env === \"production\" && \$debug === false ? 0 : 1);"; then
