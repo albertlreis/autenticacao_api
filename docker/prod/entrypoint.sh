@@ -12,12 +12,24 @@ mkdir -p \
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R ug+rwX /var/www/html/storage /var/www/html/bootstrap/cache
 
-php artisan storage:link >/dev/null 2>&1 || true
+configured_env="${APP_ENV:-$(php -r '$values = @parse_ini_file("/var/www/html/.env", false, INI_SCANNER_RAW) ?: []; echo $values["APP_ENV"] ?? "";')}"
+configured_debug="${APP_DEBUG:-$(php -r '$values = @parse_ini_file("/var/www/html/.env", false, INI_SCANNER_RAW) ?: []; echo $values["APP_DEBUG"] ?? "";')}"
 
-if [ "${APP_ENV:-production}" = "production" ]; then
-  php artisan config:cache >/dev/null 2>&1 || true
-  php artisan route:cache >/dev/null 2>&1 || true
-  php artisan view:cache >/dev/null 2>&1 || true
-fi
+case "$(printf '%s' "$configured_debug" | tr '[:upper:]' '[:lower:]')" in
+  false|0|off|no) ;;
+  *) echo "Refusing to start: APP_DEBUG must be false." >&2; exit 1 ;;
+esac
+[ "$configured_env" = "production" ] || {
+  echo "Refusing to start: APP_ENV must be production." >&2
+  exit 1
+}
+
+php artisan storage:link
+test -L /var/www/html/public/storage
+
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap(); if (! $app->environment("production") || (bool) config("app.debug")) { fwrite(STDERR, "Unsafe effective Laravel configuration.\n"); exit(1); }'
 
 exec "$@"
