@@ -112,8 +112,13 @@ class SaasAccessPolicyTest extends SaasIsolationTest
     }
     public function test_shared_catalog_and_policy_are_identical_in_both_apis(): void
     {
+        $stockApi = base_path('../gerenciador_estoque_api');
+        if (!is_dir($stockApi)) {
+            $this->markTestSkipped('O checkout irmão da API Estoque não está disponível neste runner.');
+        }
+
         foreach (['config/saas_permissions.php','app/Saas/TenantAccess.php','app/Saas/ModuleCatalog.php'] as $path) {
-            $other=base_path('../gerenciador_estoque_api/'.$path);
+            $other=$stockApi.'/'.$path;
             $this->assertFileExists($other); $this->assertSame(file_get_contents(base_path($path)),file_get_contents($other));
         }
     }
