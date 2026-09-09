@@ -12,6 +12,14 @@ class AcessoPerfil extends Model
         'nome', 'descricao'
     ];
 
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+        if (!\App\Saas\TenantAccess::enabled()) return $data;
+        $meta = \App\Saas\TenantAccess::metadata($this);
+        return array_merge($data, $meta);
+    }
+
     // Relação com usuários (muitos para muitos)
     public function usuarios()
     {

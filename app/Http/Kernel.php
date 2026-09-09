@@ -46,6 +46,7 @@ class Kernel extends HttpKernel
         ValidatePostSize::class,
         TrimStrings::class,
         ConvertEmptyStringsToNull::class,
+        \App\Saas\ResolveTenant::class,
         AddRequestContext::class,
     ];
 
@@ -65,6 +66,7 @@ class Kernel extends HttpKernel
         ],
 
         'api' => [
+            \App\Saas\RequireModule::class,
             'throttle:api',
             SubstituteBindings::class,
         ],

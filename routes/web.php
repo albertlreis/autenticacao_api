@@ -16,3 +16,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+if (config('saas.enabled')) {
+    \Illuminate\Support\Facades\Route::get('tenant-assets/{path}', \App\Saas\TenantAssetController::class)->where('path', '.*');
+}

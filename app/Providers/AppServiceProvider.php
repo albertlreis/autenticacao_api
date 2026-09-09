@@ -34,8 +34,10 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         try {
+            if (!config('saas.enabled')) {
             DB::connection()->getPdo();
             DB::statement("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_0900_ai_ci'");
+            }
         } catch (QueryException|\PDOException $e) {
             if (!$this->app->environment('testing')) {
                 SierraLog::system('system.mysql.charset_failed', [

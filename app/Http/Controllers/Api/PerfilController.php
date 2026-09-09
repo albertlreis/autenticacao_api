@@ -17,10 +17,25 @@ class PerfilController extends Controller
 
     public function index(): JsonResponse
     {
+        \App\Saas\AccessPolicy::authorize('perfis.visualizar');
+        return $this->indexAuthorized();
+    }
+
+    private function indexAuthorized(): JsonResponse
+    {
         return response()->json(AcessoPerfil::with('permissoes')->orderBy('nome')->get());
     }
 
     public function store(Request $request): JsonResponse
+    {
+        \App\Saas\AccessPolicy::authorize('perfis.criar');
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+            \App\Saas\AccessPolicy::profileWrite(null, $request->validate(['nome' => 'required|string|max:100', 'permissoes' => 'sometimes|array', 'permissoes.*' => 'integer|exists:acesso_permissoes,id']));
+            return $this->storeAuthorized($request);
+        });
+    }
+
+    private function storeAuthorized(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'nome'        => 'required|string|max:100',
@@ -51,12 +66,27 @@ class PerfilController extends Controller
 
     public function show($id): JsonResponse
     {
+        \App\Saas\AccessPolicy::authorize('perfis.visualizar');
+        return $this->showAuthorized($id);
+    }
+
+    private function showAuthorized($id): JsonResponse
+    {
         $perfil = AcessoPerfil::with('permissoes')->find($id);
         if (!$perfil) return response()->json(['message' => 'Perfil não encontrado'], 404);
         return response()->json($perfil);
     }
 
     public function update(Request $request, $id): JsonResponse
+    {
+        \App\Saas\AccessPolicy::authorize('perfis.editar');
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $id) {
+            \App\Saas\AccessPolicy::profileWrite(AcessoPerfil::find($id), $request->validate(['nome' => 'sometimes|required|string|max:100', 'permissoes' => 'sometimes|array', 'permissoes.*' => 'integer|exists:acesso_permissoes,id']));
+            return $this->updateAuthorized($request, $id);
+        });
+    }
+
+    private function updateAuthorized(Request $request, $id): JsonResponse
     {
         $perfil = AcessoPerfil::find($id);
         if (!$perfil) return response()->json(['message' => 'Perfil não encontrado'], 404);
@@ -104,6 +134,15 @@ class PerfilController extends Controller
 
     public function destroy($id): JsonResponse
     {
+        \App\Saas\AccessPolicy::authorize('perfis.excluir');
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($id) {
+            \App\Saas\AccessPolicy::profileWrite(AcessoPerfil::find($id), []);
+            return $this->destroyAuthorized($id);
+        });
+    }
+
+    private function destroyAuthorized($id): JsonResponse
+    {
         $perfil = AcessoPerfil::find($id);
         if (!$perfil) return response()->json(['message' => 'Perfil não encontrado'], 404);
 
@@ -122,6 +161,29 @@ class PerfilController extends Controller
 
         return response()->json(['message' => 'Perfil removido com sucesso']);
     }
+    public function assignPermissao(Request $request, $perfil): JsonResponse
+    {
+        \App\Saas\AccessPolicy::authorize('perfis.atribuir_permissao');
+        $data = $request->validate(['permissoes' => 'required|array|min:1', 'permissoes.*' => 'integer|exists:acesso_permissoes,id']);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($data, $perfil, $request) {
+            $model = AcessoPerfil::findOrFail($perfil);
+            $ids = array_values(array_unique(array_merge($model->permissoes()->pluck('acesso_permissoes.id')->all(), $data['permissoes'])));
+            \App\Saas\AccessPolicy::profileWrite($model, ['permissoes' => $ids]);
+            return $this->updateAuthorized(new Request(['permissoes' => $ids]), $perfil);
+        });
+    }
+
+    public function removePermissao($perfil, $permissao): JsonResponse
+    {
+        \App\Saas\AccessPolicy::authorize('perfis.remover_permissao');
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($perfil, $permissao) {
+            $model = AcessoPerfil::findOrFail($perfil);
+            \App\Saas\AccessPolicy::profileWrite($model, []);
+            $ids = $model->permissoes()->pluck('acesso_permissoes.id')->reject(fn ($id) => (int) $id === (int) $permissao)->values()->all();
+            return $this->updateAuthorized(new Request(['permissoes' => $ids]), $perfil);
+        });
+    }
+
     /**
      * @return array<int,string>
      */

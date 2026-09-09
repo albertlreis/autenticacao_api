@@ -93,3 +93,7 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
+
+require __DIR__.'/platform.php';
+
+require __DIR__.'/control.php';

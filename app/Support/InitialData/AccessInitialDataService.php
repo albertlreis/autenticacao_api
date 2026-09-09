@@ -38,7 +38,7 @@ class AccessInitialDataService
 
     public function shouldSeedUsuariosPadrao(): bool
     {
-        return app()->environment(['local', 'testing']);
+        return !\App\Saas\TenantAccess::enabled() && app()->environment(['local', 'testing']);
     }
 
     public function seedPerfis(): void
@@ -54,6 +54,7 @@ class AccessInitialDataService
         ];
 
         foreach ($rows as &$row) {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('acesso_perfis', 'codigo')) $row['codigo'] = \App\Saas\TenantAccess::code((object) $row);
             $row['created_at'] = $now;
             $row['updated_at'] = $now;
         }
@@ -131,6 +132,7 @@ class AccessInitialDataService
             $usuarios = DB::table('acesso_usuarios')->get(['id', 'email']);
 
             foreach ($usuarios as $usuario) {
+                if (\App\Saas\TenantAccess::enabled()) continue;
                 $perfilId = match (true) {
                     str_contains($usuario->email, 'dev') => $devPerfilId,
                     str_contains($usuario->email, 'admin') => $adminPerfilId,

@@ -172,6 +172,8 @@ class UsuarioController extends Controller
         try {
             $usuario = $this->service->criar($request->validated());
             return response()->json(new UsuarioResource($usuario), 201);
+        } catch (\Illuminate\Validation\ValidationException | \Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (Throwable $e) {
             SierraLog::auth('auth.user.create_failed', [
                 'email' => $request->input('email'),
@@ -211,6 +213,8 @@ class UsuarioController extends Controller
         try {
             $usuario = $this->service->atualizar($usuario, $request->validated());
             return response()->json(new UsuarioResource($usuario));
+        } catch (\Illuminate\Validation\ValidationException | \Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (Throwable $e) {
             SierraLog::auth('auth.user.update_failed', [
                 'entity_type' => 'acesso_usuario',
@@ -291,6 +295,8 @@ class UsuarioController extends Controller
 
         try {
             $permissoes = $this->permissoesCache->get($user);
+        } catch (\Illuminate\Validation\ValidationException | \Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
         } catch (Throwable $e) {
             SierraLog::auth('auth.permissions.load_failed', [
                 'user_id' => $user->id,

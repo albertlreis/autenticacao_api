@@ -44,6 +44,7 @@ class UsuarioResource extends JsonResource
                     'id' => (int) $p->id,
                     'nome' => (string) $p->nome,
                     'descricao' => $p->descricao,
+                    ...(\App\Saas\TenantAccess::enabled() ? \App\Saas\TenantAccess::metadata($p) : []),
                 ])->values();
             }),
         ];

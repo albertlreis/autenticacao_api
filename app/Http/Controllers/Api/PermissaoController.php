@@ -14,11 +14,14 @@ class PermissaoController extends Controller
 {
     public function index(): JsonResponse
     {
+        \App\Saas\AccessPolicy::authorize('permissoes.visualizar');
         return response()->json(AcessoPermissao::orderBy('slug')->get());
     }
 
     public function store(Request $request): JsonResponse
     {
+        \App\Saas\AccessPolicy::authorize('permissoes.criar');
+        abort_if(\App\Saas\TenantAccess::enabled(), 403, 'O catálogo de permissões é mantido pela operação da plataforma.');
         $validator = Validator::make($request->all(), [
             'slug'      => 'required|string|max:100|unique:acesso_permissoes,slug',
             'nome'      => 'required|string|max:100',
@@ -40,6 +43,7 @@ class PermissaoController extends Controller
 
     public function show($id): JsonResponse
     {
+        \App\Saas\AccessPolicy::authorize('permissoes.visualizar');
         $permissao = AcessoPermissao::find($id);
         if (!$permissao) return response()->json(['message' => 'Permissão não encontrada'], 404);
         return response()->json($permissao);
@@ -47,6 +51,8 @@ class PermissaoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        \App\Saas\AccessPolicy::authorize('permissoes.editar');
+        abort_if(\App\Saas\TenantAccess::enabled(), 403, 'O catálogo de permissões é mantido pela operação da plataforma.');
         $permissao = AcessoPermissao::find($id);
         if (!$permissao) return response()->json(['message' => 'Permissão não encontrada'], 404);
 
@@ -74,6 +80,8 @@ class PermissaoController extends Controller
 
     public function destroy($id): JsonResponse
     {
+        \App\Saas\AccessPolicy::authorize('permissoes.excluir');
+        abort_if(\App\Saas\TenantAccess::enabled(), 403, 'O catálogo de permissões é mantido pela operação da plataforma.');
         $permissao = AcessoPermissao::find($id);
         if (!$permissao) return response()->json(['message' => 'Permissão não encontrada'], 404);
 

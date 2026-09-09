@@ -12,6 +12,8 @@ class AddRequestContext
 {
     public function handle($request, Closure $next)
     {
+        if (config('saas.enabled') && !app(\App\Saas\TenantContext::class)->tenant()) return $next($request);
+
         $requestId = $this->requestId($request->headers->get('X-Request-Id'));
         $request->headers->set('X-Request-Id', $requestId);
         $request->attributes->set('request_id', $requestId);

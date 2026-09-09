@@ -130,8 +130,9 @@ class AuthController extends Controller
             'forcar_troca_senha' => (bool) $user->forcar_troca_senha,
             'ultimo_login_em' => optional($user->ultimo_login_em)?->toISOString(),
             'senha_alterada_em' => optional($user->senha_alterada_em)?->toISOString(),
-            'perfis'     => $user->perfis()->pluck('nome')->toArray(),
+            'perfis'     => (\App\Saas\TenantAccess::enabled() ? \App\Saas\TenantAccess::names((int) $user->id) : $user->perfis()->pluck('nome')->toArray()),
             'permissoes' => $permissoes,
+            ...app(\App\Saas\TenantContext::class)->payload(),
         ];
     }
 
@@ -344,8 +345,9 @@ class AuthController extends Controller
                     'forcar_troca_senha' => (bool) $usuario->forcar_troca_senha,
                     'ultimo_login_em' => optional($usuario->ultimo_login_em)?->toISOString(),
                     'senha_alterada_em' => optional($usuario->senha_alterada_em)?->toISOString(),
-                    'perfis'     => $usuario->perfis()->pluck('nome')->toArray(),
+                    'perfis'     => (\App\Saas\TenantAccess::enabled() ? \App\Saas\TenantAccess::names((int) $usuario->id) : $usuario->perfis()->pluck('nome')->toArray()),
                     'permissoes' => $permissoes,
+            ...app(\App\Saas\TenantContext::class)->payload(),
                 ],
             ])
             ->withCookie($this->refreshCookie($plainRefresh));

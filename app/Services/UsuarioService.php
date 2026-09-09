@@ -35,6 +35,14 @@ class UsuarioService
      */
     public function criar(array $data): AcessoUsuario
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+            \App\Saas\AccessPolicy::profiles($data['perfis'] ?? []);
+            return $this->criarDentroTransacao($data);
+        });
+    }
+
+    private function criarDentroTransacao(array $data): AcessoUsuario
+    {
         $usuario = AcessoUsuario::create([
             'nome'  => $data['nome'],
             'email' => $data['email'],
@@ -72,6 +80,14 @@ class UsuarioService
      * @return AcessoUsuario
      */
     public function atualizar(AcessoUsuario $usuario, array $data): AcessoUsuario
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($usuario, $data) {
+            if (array_key_exists('perfis', $data)) \App\Saas\AccessPolicy::profiles($data['perfis'] ?? [], $usuario->perfis()->pluck('acesso_perfis.id')->all());
+            return $this->atualizarDentroTransacao($usuario, $data);
+        });
+    }
+
+    private function atualizarDentroTransacao(AcessoUsuario $usuario, array $data): AcessoUsuario
     {
         $before = $usuario->fresh(['perfis']);
         $perfisAntes = $this->perfilNames($before);
@@ -152,6 +168,14 @@ class UsuarioService
      */
     public function adicionarPerfis(AcessoUsuario $usuario, array $perfisIds): AcessoUsuario
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($usuario, $perfisIds) {
+            \App\Saas\AccessPolicy::profiles(array_unique(array_merge($perfisIds, $usuario->perfis()->pluck('acesso_perfis.id')->all())), $usuario->perfis()->pluck('acesso_perfis.id')->all());
+            return $this->adicionarPerfisDentroTransacao($usuario, $perfisIds);
+        });
+    }
+
+    private function adicionarPerfisDentroTransacao(AcessoUsuario $usuario, array $perfisIds): AcessoUsuario
+    {
         $before = $usuario->fresh(['perfis']);
         $perfisAntes = $this->perfilNames($before);
         $usuario->perfis()->syncWithoutDetaching($perfisIds);
@@ -177,6 +201,10 @@ class UsuarioService
      */
     public function removerPerfil(AcessoUsuario $usuario, int $perfilId): AcessoUsuario
     {
+        if (\App\Saas\TenantAccess::enabled()) {
+            $profile = \App\Models\AcessoPerfil::find($perfilId);
+            abort_if($profile && \App\Saas\TenantAccess::code($profile) === 'desenvolvedor', 403, 'Reservado ao suporte.');
+        }
         $before = $usuario->fresh(['perfis']);
         $perfisAntes = $this->perfilNames($before);
         $usuario->perfis()->detach($perfilId);

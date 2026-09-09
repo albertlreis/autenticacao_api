@@ -12,6 +12,7 @@ class CachePermissoes
 {
     public function handle(Request $request, Closure $next)
     {
+        if (\App\Saas\TenantAccess::enabled()) return $next($request);
         if (Auth::check()) {
             $user = Auth::user();
             $cacheKey = 'permissoes_usuario_' . $user->id;

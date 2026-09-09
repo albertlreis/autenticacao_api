@@ -7,6 +7,12 @@ use Illuminate\Http\Request;
 
 class TrustProxies extends Middleware
 {
+    public function handle(Request $request, \Closure $next)
+    {
+        if (config('saas.enabled')) $this->proxies = config('saas.trusted_proxies', []);
+        return parent::handle($request, $next);
+    }
+
     /**
      * The trusted proxies for this application.
      *

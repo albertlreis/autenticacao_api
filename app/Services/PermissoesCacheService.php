@@ -14,6 +14,7 @@ class PermissoesCacheService
 
     public function get(AcessoUsuario $usuario): array
     {
+        if (\App\Saas\TenantAccess::enabled()) return \App\Saas\TenantAccess::permissions((int) $usuario->id);
         $ttlHours = (int) config('acesso.permissions_cache_ttl_hours', 6);
         $key = $this->key((int) $usuario->getKey());
 
