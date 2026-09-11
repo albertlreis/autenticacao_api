@@ -74,6 +74,9 @@ jobs:
           APP_ENV: testing
         run: composer test:full
 
+      - name: Validate dynamic Nginx upstream
+        run: bash tests/Deployment/nginx_dynamic_upstream_test.sh
+
   deploy:
     if: github.event_name != 'pull_request'
     needs: test
@@ -260,7 +263,9 @@ jobs:
             docker cp "$HOST_ENV_FILE" "${CONTAINER_NAME}:/var/www/html/.env"
             docker restart "$CONTAINER_NAME"
             install -m 644 "$APP_DIR/html/docker/prod/nginx.conf" "$APP_DIR/nginx.conf"
-            compose up -d --no-deps --force-recreate nginx
+            compose up -d --no-deps nginx
+            compose exec -T nginx nginx -t
+            compose exec -T nginx nginx -s reload
             docker update --restart always "$CONTAINER_NAME" "$NGINX_CONTAINER_NAME" >/dev/null
             sleep 5
 
