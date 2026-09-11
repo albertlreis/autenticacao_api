@@ -1,17 +1,16 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\UsuarioController;
 use App\Http\Controllers\Api\PerfilController;
 use App\Http\Controllers\Api\PermissaoController;
+use App\Http\Controllers\Api\UsuarioController;
 use App\Http\Controllers\MonitoramentoController;
+use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::get('health', fn () => response()->json([
         'status' => 'ok',
-        'service' => 'autenticacao-api',
+        'service' => config('app.service'),
     ]));
 
     /* ============================================================
