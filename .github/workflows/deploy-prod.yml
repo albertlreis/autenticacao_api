@@ -263,7 +263,12 @@ jobs:
             docker cp "$HOST_ENV_FILE" "${CONTAINER_NAME}:/var/www/html/.env"
             docker restart "$CONTAINER_NAME"
             install -m 644 "$APP_DIR/html/docker/prod/nginx.conf" "$APP_DIR/nginx.conf"
-            compose up -d --no-deps nginx
+            nginx_id="$(compose ps -q nginx)"
+            if [ -z "$nginx_id" ]; then
+              compose up -d --no-deps nginx
+            elif [ "$(docker inspect -f '{{.State.Running}}' "$nginx_id")" != true ]; then
+              docker start "$nginx_id"
+            fi
             compose exec -T nginx nginx -t
             compose exec -T nginx nginx -s reload
             docker update --restart always "$CONTAINER_NAME" "$NGINX_CONTAINER_NAME" >/dev/null
