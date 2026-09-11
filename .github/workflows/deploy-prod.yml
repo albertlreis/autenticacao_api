@@ -150,7 +150,7 @@ jobs:
           done
           remote_exports="${remote_exports} DEPLOY_ARGS_B64='$(b64 "${deploy_args}")'"
 
-          ssh -p "${{ secrets.DEPLOY_PORT }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "${remote_exports} bash -s" <<'REMOTE'
+          ssh -p "${{ secrets.DEPLOY_PORT }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "sudo -n env ${remote_exports} bash -s" <<'REMOTE'
             set -euo pipefail
 
             APP_DIR=/home/docker/acadsoft/sierra-auth
