@@ -52,6 +52,7 @@ final class SaasProvision extends Command
                 if ($file = config('saas.profiles_file')) $profiles = array_replace($profiles, json_decode(file_get_contents($file), true, 512, JSON_THROW_ON_ERROR));
                 $profile = $profiles[$tenant->connection_profile] ?? null;
                 if (!is_array($profile)) throw new \RuntimeException('Unknown database profile.');
+                $this->step($id, 'connection-profile', 'completed');
                 // Provisioner credentials are separate from runtime application credentials.
                 $provision = array_merge($profile, [
                     'database' => null, 'username' => config('saas.provision_username'), 'password' => config('saas.provision_password'),
@@ -59,10 +60,13 @@ final class SaasProvision extends Command
                 unset($provision['url']);
                 config(['database.connections.saas_provision' => $provision]);
                 DB::purge('saas_provision');
-                if (!$this->option('prepared-database')) DB::connection('saas_provision')->statement('CREATE DATABASE IF NOT EXISTS `'.$tenant->database_name.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-                foreach ([base_path(), $inventory] as $path) {
-                    $this->runStep($path, $id, 'migrate --force', 'migrations');
+                if (!$this->option('prepared-database')) {
+                    $this->step($id, 'database', 'running');
+                    DB::connection('saas_provision')->statement('CREATE DATABASE IF NOT EXISTS `'.$tenant->database_name.'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
                 }
+                $this->step($id, 'database', 'completed');
+                $this->runStep(base_path(), $id, 'migrate --force', 'authentication-migrations');
+                $this->runStep($inventory, $id, 'migrate --force', 'inventory-migrations');
                 $this->runStep($inventory, $id, 'app:setup-initial-data', 'initial-data');
                 $input = new StringInput('');
                 $command = 'saas:bootstrap-admin '.$input->escapeToken($tenant->admin_email).' '.$input->escapeToken($tenant->admin_name);
@@ -84,6 +88,7 @@ final class SaasProvision extends Command
 
     private function runStep(string $path, string $tenant, string $command, string $step): void
     {
+        $this->step($tenant, $step, 'running');
         $this->event($tenant, 'provision.step.started', ['step' => $step, 'service' => basename($path)]);
         $process = new Process([PHP_BINARY, $path.'/artisan', 'saas:run', $tenant, $command, '--provisioning', '--no-interaction'], $path, ['SAAS_ENABLED' => 'true']);
         $process->setTimeout(1800);
@@ -98,9 +103,23 @@ final class SaasProvision extends Command
             $log = storage_path('logs/saas-provision-'.$tenant.'.log');
             file_put_contents($log, now()->toIso8601String().' '.$step."\n".$diagnostic."\n", FILE_APPEND | LOCK_EX);
             chmod($log, 0600);
+            $this->step($tenant, $step, 'failed', 'COMMAND_FAILED');
             throw new \RuntimeException('Provisioning step failed: '.$step);
         }
+        $this->step($tenant, $step, 'completed');
         $this->event($tenant, 'provision.step.completed', ['step' => $step, 'service' => basename($path)]);
+    }
+
+    private function step(string $tenant, string $step, string $state, ?string $errorCode = null): void
+    {
+        $table = DB::connection('saas_central')->table('saas_provision_steps');
+        $key = ['tenant_id' => $tenant, 'step' => $step];
+        $values = ['state' => $state, 'error_code' => $errorCode, 'updated_at' => now()];
+        if ($table->where($key)->exists()) {
+            $table->where($key)->update($values);
+        } else {
+            $table->insert($key + $values + ['created_at' => now()]);
+        }
     }
 
     private function event(string $tenant, string $action, array $details = []): void

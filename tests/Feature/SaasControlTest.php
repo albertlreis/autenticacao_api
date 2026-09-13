@@ -109,4 +109,20 @@ final class SaasControlTest extends TestCase {
    'verification_status'=>'verified','created_at'=>now(),'updated_at'=>now(),
   ]);
  }
+
+ public function test_provision_steps_are_updated_without_rewriting_creation_time():void {
+  $id=$this->createTenant();
+  $command=app(\App\Console\Commands\SaasProvision::class);
+  $step=new \ReflectionMethod($command,'step');
+  $this->beforeApplicationDestroyed(fn()=>\Illuminate\Support\Carbon::setTestNow());
+  \Illuminate\Support\Carbon::setTestNow('2026-09-13 10:00:00');
+  $step->invoke($command,$id,'database','running',null);
+  $created=DB::connection('saas_central')->table('saas_provision_steps')->where('tenant_id',$id)->value('created_at');
+  \Illuminate\Support\Carbon::setTestNow('2026-09-13 10:05:00');
+  $step->invoke($command,$id,'database','completed',null);
+  $record=DB::connection('saas_central')->table('saas_provision_steps')->where('tenant_id',$id)->first();
+  $this->assertSame('completed',$record->state);
+  $this->assertSame((string)$created,(string)$record->created_at);
+  $this->assertNotSame((string)$record->created_at,(string)$record->updated_at);
+ }
 }
