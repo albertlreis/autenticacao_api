@@ -229,10 +229,21 @@ final class ControlController
     private function payload(object $tenant): array
     {
         $tenant = TenantDomains::attachCanonical($tenant);
+        $health = $this->db()->table('saas_tenant_health')->where('tenant_id', $tenant->id)->first();
         return ['id' => $tenant->id, 'name' => $tenant->name, 'slug' => $tenant->slug, 'status' => $tenant->status,
             'modules' => json_decode($tenant->modules, true), 'version' => (int) $tenant->contract_version,
             'installation_type' => $tenant->installation_type, 'url' => TenantDomains::url($tenant),
-            'domains' => TenantDomains::payload($tenant->id), 'provision_requested' => (bool) $tenant->provision_requested_at];
+            'domains' => TenantDomains::payload($tenant->id), 'provision_requested' => (bool) $tenant->provision_requested_at,
+            'health' => $health ? [
+                'api_ok' => $health->api_ok === null ? null : (bool) $health->api_ok,
+                'worker_ok' => $health->worker_ok === null ? null : (bool) $health->worker_ok,
+                'scheduler_ok' => $health->scheduler_ok === null ? null : (bool) $health->scheduler_ok,
+                'backup_ok' => $health->backup_ok === null ? null : (bool) $health->backup_ok,
+                'backup_age_seconds' => $health->backup_age_seconds === null ? null : (int) $health->backup_age_seconds,
+                'queue_pending' => $health->queue_pending === null ? null : (int) $health->queue_pending,
+                'queue_oldest_seconds' => $health->queue_oldest_seconds === null ? null : (int) $health->queue_oldest_seconds,
+                'observed_at' => $health->observed_at,
+            ] : null];
     }
     private function event(Request $request, string $id, string $action, $before, $after, ?string $reason = null): void
     {

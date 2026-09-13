@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 final class SaasControlTest extends TestCase {
  public function createApplication(){ $a=require __DIR__.'/../../bootstrap/app.php';$a->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();return $a; }
- protected function setUp():void{parent::setUp();config(['saas.enabled'=>true,'saas.base_domain'=>'sierra.test','saas.scheme'=>'https','saas.url_port'=>5173,'saas.dedicated_tenant_id'=>null,'saas_control.enabled'=>true,'saas_control.host'=>'sierra-control.internal','saas_control.provision_enabled'=>true,'saas_control.keys.test'=>['secret'=>str_repeat('x',40),'scopes'=>['sierra:manage']],'database.connections.saas_central'=>['driver'=>'sqlite','database'=>':memory:','prefix'=>'']]);DB::purge('saas_central');foreach(['2026_09_07_000001_create_saas_platform.php','2026_09_09_000001_add_webleap_control.php','2026_09_09_000002_create_saas_invitations.php','2026_09_10_000001_create_saas_tenant_domains.php'] as $f)(require base_path('database/saas/'.$f))->up();Route::middleware('api')->prefix('api')->group(base_path('routes/control.php'));}
+ protected function setUp():void{parent::setUp();config(['saas.enabled'=>true,'saas.base_domain'=>'sierra.test','saas.scheme'=>'https','saas.url_port'=>5173,'saas.dedicated_tenant_id'=>null,'saas_control.enabled'=>true,'saas_control.host'=>'sierra-control.internal','saas_control.provision_enabled'=>true,'saas_control.keys.test'=>['secret'=>str_repeat('x',40),'scopes'=>['sierra:manage']],'database.connections.saas_central'=>['driver'=>'sqlite','database'=>':memory:','prefix'=>'']]);DB::purge('saas_central');foreach(['2026_09_07_000001_create_saas_platform.php','2026_09_09_000001_add_webleap_control.php','2026_09_09_000002_create_saas_invitations.php','2026_09_10_000001_create_saas_tenant_domains.php','2026_09_13_000001_create_saas_tenant_health.php'] as $f)(require base_path('database/saas/'.$f))->up();Route::middleware('api')->prefix('api')->group(base_path('routes/control.php'));}
  private function signed($method,$path,$data=[],$id=null,$nonce=null,$host='sierra-control.internal',$actor='webleap:1'){
   $body=$method==='GET'?'':json_encode($data);$time=(string)time();$nonce??=bin2hex(random_bytes(32));$uri='/api/v1/control/'.$path;
   $canonical=implode("\n",[$method,$uri,hash('sha256',$body),$actor,$time,$nonce,$id??'']);
@@ -124,5 +124,20 @@ final class SaasControlTest extends TestCase {
   $this->assertSame('completed',$record->state);
   $this->assertSame((string)$created,(string)$record->created_at);
   $this->assertNotSame((string)$record->created_at,(string)$record->updated_at);
+ }
+
+ public function test_control_payload_exposes_only_operational_health_fields():void {
+  $id=$this->createTenant();
+  DB::connection('saas_central')->table('saas_tenant_health')->insert([
+   'tenant_id'=>$id,'api_ok'=>true,'worker_ok'=>true,'scheduler_ok'=>false,'backup_ok'=>true,
+   'backup_age_seconds'=>3600,'queue_pending'=>2,'queue_oldest_seconds'=>15,'source'=>'shared-supervisor',
+   'details'=>json_encode(['internal_path'=>'/restricted','credential'=>'never expose']),
+   'observed_at'=>now(),'created_at'=>now(),'updated_at'=>now(),
+  ]);
+  $health=$this->signed('GET','tenants/'.$id)->assertOk()->json('tenant.health');
+  $this->assertSame(3600,$health['backup_age_seconds']);
+  $this->assertFalse($health['scheduler_ok']);
+  $this->assertArrayNotHasKey('details',$health);
+  $this->assertArrayNotHasKey('source',$health);
  }
 }
