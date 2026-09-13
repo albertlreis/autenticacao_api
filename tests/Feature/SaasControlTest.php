@@ -100,4 +100,13 @@ final class SaasControlTest extends TestCase {
   $id=$this->createTenant();
   $this->signed('GET','tenants/'.$id)->assertOk()->assertJsonPath('tenant.url','https://alpha.sierra.test');
  }
+
+ public function test_database_rejects_two_active_canonical_domains_for_same_tenant():void {
+  $id=$this->createTenant();
+  $this->expectException(\Illuminate\Database\QueryException::class);
+  DB::connection('saas_central')->table('saas_tenant_domains')->insert([
+   'tenant_id'=>$id,'host'=>'second.example.test','is_canonical'=>true,'active'=>true,
+   'verification_status'=>'verified','created_at'=>now(),'updated_at'=>now(),
+  ]);
+ }
 }

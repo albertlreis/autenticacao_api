@@ -25,6 +25,21 @@ return new class extends Migration {
             $table->index(['tenant_id', 'is_canonical']);
         });
 
+        $connection = DB::connection($this->connection);
+        if ($connection->getDriverName() === 'mysql') {
+            $connection->statement(
+                'ALTER TABLE saas_tenant_domains '
+                .'ADD active_canonical_tenant_id CHAR(36) GENERATED ALWAYS AS '
+                .'(CASE WHEN is_canonical = 1 AND active = 1 THEN tenant_id ELSE NULL END) STORED, '
+                .'ADD UNIQUE INDEX saas_domains_one_active_canonical (active_canonical_tenant_id)'
+            );
+        } elseif ($connection->getDriverName() === 'sqlite') {
+            $connection->statement(
+                'CREATE UNIQUE INDEX saas_domains_one_active_canonical '
+                .'ON saas_tenant_domains (tenant_id) WHERE is_canonical = 1 AND active = 1'
+            );
+        }
+
         $base = strtolower((string) config('saas.base_domain'));
         foreach (DB::connection($this->connection)->table('saas_tenants')->get(['id', 'slug']) as $tenant) {
             DB::connection($this->connection)->table('saas_tenant_domains')->insert([
