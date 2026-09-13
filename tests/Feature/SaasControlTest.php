@@ -64,6 +64,7 @@ final class SaasControlTest extends TestCase {
    'domains'=>[['host'=>'alpha.sierra.test','canonical'=>true,'active'=>true],['host'=>'erp.alpha.example','canonical'=>false,'active'=>false],['host'=>'alias.alpha.example','canonical'=>false,'active'=>false]]];
   $tenant=$this->signed('POST','tenants',$payload,(string)Str::uuid())->assertCreated()
    ->assertJsonPath('tenant.url','https://alpha.sierra.test:5173')->assertJsonCount(3,'tenant.domains')->json('tenant');
+  $standardCreatedAt=DB::connection('saas_central')->table('saas_tenant_domains')->where('host','alpha.sierra.test')->value('created_at');
   $registry=app(\App\Saas\TenantRegistry::class);
   $this->assertNull($registry->byHost('ALIAS.ALPHA.EXAMPLE.'));
   $custom=collect($tenant['domains'])->firstWhere('host','erp.alpha.example');
@@ -74,6 +75,7 @@ final class SaasControlTest extends TestCase {
    'host'=>$domain['host'],'canonical'=>$domain['host']==='erp.alpha.example','active'=>$domain['host']!=='alias.alpha.example'])->values()->all();
   $this->signed('PATCH','tenants/'.$tenant['id'],['version'=>1,'domains'=>$updatedDomains,'reason'=>'Tornar domínio aprovado canônico'],(string)Str::uuid())
    ->assertOk()->assertJsonPath('tenant.url','https://erp.alpha.example:5173');
+  $this->assertSame($standardCreatedAt,DB::connection('saas_central')->table('saas_tenant_domains')->where('host','alpha.sierra.test')->value('created_at'));
   $this->assertSame($tenant['id'],$registry->byHost('ERP.ALPHA.EXAMPLE.')?->id);
   $this->assertSame('erp.alpha.example',$registry->byHost('alpha.sierra.test')?->canonical_host);
   $this->assertNull($registry->byHost('unknown.example'));

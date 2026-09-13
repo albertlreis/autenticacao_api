@@ -200,13 +200,24 @@ final class ControlController
         $hosts = [];
         foreach ($domains as $domain) {
             $hosts[] = $domain['host'];
-            $this->db()->table('saas_tenant_domains')->updateOrInsert(
-                ['tenant_id' => $tenantId, 'host' => $domain['host']],
-                ['is_canonical' => $domain['canonical'], 'active' => $domain['active'],
-                    'verification_status' => $domain['verification_status'], 'verified_at' => $domain['verified_at'],
-                    'verified_by' => $domain['verified_by'], 'verification_notes' => $domain['verification_notes'],
-                    'updated_at' => now(), 'created_at' => now()]
-            );
+            $existing = $this->db()->table('saas_tenant_domains')
+                ->where('tenant_id', $tenantId)
+                ->where('host', $domain['host'])
+                ->first();
+            $values = [
+                'is_canonical' => $domain['canonical'], 'active' => $domain['active'],
+                'verification_status' => $domain['verification_status'], 'verified_at' => $domain['verified_at'],
+                'verified_by' => $domain['verified_by'], 'verification_notes' => $domain['verification_notes'],
+                'updated_at' => now(),
+            ];
+            if ($existing) {
+                $this->db()->table('saas_tenant_domains')->where('id', $existing->id)->update($values);
+            } else {
+                $this->db()->table('saas_tenant_domains')->insert(array_merge(
+                    ['tenant_id' => $tenantId, 'host' => $domain['host'], 'created_at' => now()],
+                    $values,
+                ));
+            }
         }
         $this->db()->table('saas_tenant_domains')->where('tenant_id', $tenantId)->whereNotIn('host', $hosts)->delete();
     }
