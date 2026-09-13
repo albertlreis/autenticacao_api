@@ -9,6 +9,7 @@ return [
     'provision_password' => env('SAAS_PROVISION_DB_PASSWORD'),
     'integrations' => env('SAAS_INTEGRATIONS_FILE') ? require env('SAAS_INTEGRATIONS_FILE') : [],
     'enabled' => (bool) env('SAAS_ENABLED', false),
+    'local_developer_switch' => (bool) env('SAAS_LOCAL_DEVELOPER_SWITCH', false),
     'trusted_proxies' => array_values(array_filter(array_map('trim', explode(',', (string) env('SAAS_TRUSTED_PROXIES', ''))))),
     'base_domain' => env('SAAS_BASE_DOMAIN', 'sierra.test'),
     'platform_host' => env('SAAS_PLATFORM_HOST', 'admin.sierra.test'),

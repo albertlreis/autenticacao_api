@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 final class SaasControlTest extends TestCase {
  public function createApplication(){ $a=require __DIR__.'/../../bootstrap/app.php';$a->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();return $a; }
- protected function setUp():void{parent::setUp();config(['saas.enabled'=>true,'saas.dedicated_tenant_id'=>null,'saas_control.enabled'=>true,'saas_control.host'=>'sierra-control.internal','saas_control.provision_enabled'=>true,'saas_control.keys.test'=>['secret'=>str_repeat('x',40),'scopes'=>['sierra:manage']],'database.connections.saas_central'=>['driver'=>'sqlite','database'=>':memory:','prefix'=>'']]);DB::purge('saas_central');foreach(['2026_09_07_000001_create_saas_platform.php','2026_09_09_000001_add_webleap_control.php','2026_09_09_000002_create_saas_invitations.php'] as $f)(require base_path('database/saas/'.$f))->up();Route::middleware('api')->prefix('api')->group(base_path('routes/control.php'));}
+ protected function setUp():void{parent::setUp();config(['saas.enabled'=>true,'saas.base_domain'=>'sierra.test','saas.scheme'=>'https','saas.dedicated_tenant_id'=>null,'saas_control.enabled'=>true,'saas_control.host'=>'sierra-control.internal','saas_control.provision_enabled'=>true,'saas_control.keys.test'=>['secret'=>str_repeat('x',40),'scopes'=>['sierra:manage']],'database.connections.saas_central'=>['driver'=>'sqlite','database'=>':memory:','prefix'=>'']]);DB::purge('saas_central');foreach(['2026_09_07_000001_create_saas_platform.php','2026_09_09_000001_add_webleap_control.php','2026_09_09_000002_create_saas_invitations.php','2026_09_10_000001_create_saas_tenant_domains.php'] as $f)(require base_path('database/saas/'.$f))->up();Route::middleware('api')->prefix('api')->group(base_path('routes/control.php'));}
  private function signed($method,$path,$data=[],$id=null,$nonce=null,$host='sierra-control.internal',$actor='webleap:1'){
   $body=$method==='GET'?'':json_encode($data);$time=(string)time();$nonce??=bin2hex(random_bytes(32));$uri='/api/v1/control/'.$path;
   $canonical=implode("\n",[$method,$uri,hash('sha256',$body),$actor,$time,$nonce,$id??'']);
@@ -58,5 +58,19 @@ final class SaasControlTest extends TestCase {
  }
  public function test_shared_runtime_rejects_dedicated_tenant():void {
   $id=$this->createTenant();DB::connection('saas_central')->table('saas_tenants')->where('id',$id)->update(['installation_type'=>'dedicated']);config(['saas.base_domain'=>'sierra.test']);$registry=app(\App\Saas\TenantRegistry::class);$this->assertNull($registry->byId($id));$this->assertNull($registry->byHost('alpha.sierra.test'));
+ }
+ public function test_custom_domains_resolve_and_canonical_domain_controls_urls():void {
+  $payload=['name'=>'Alpha','slug'=>'alpha','admin_name'=>'Gestor','admin_email'=>'gestor@example.test','modules'=>['estoque'],
+   'domains'=>[['host'=>'erp.alpha.example','canonical'=>true,'active'=>true],['host'=>'alias.alpha.example','canonical'=>false,'active'=>true]]];
+  $tenant=$this->signed('POST','tenants',$payload,(string)Str::uuid())->assertCreated()
+   ->assertJsonPath('tenant.url','https://erp.alpha.example:5173')->assertJsonCount(3,'tenant.domains')->json('tenant');
+  $registry=app(\App\Saas\TenantRegistry::class);
+  $this->assertSame($tenant['id'],$registry->byHost('ALIAS.ALPHA.EXAMPLE.')?->id);
+  $this->assertSame('erp.alpha.example',$registry->byHost('alpha.sierra.test')?->canonical_host);
+  $this->assertNull($registry->byHost('unknown.example'));
+  DB::connection('saas_central')->table('saas_tenant_domains')->where('host','alias.alpha.example')->update(['active'=>false]);
+  $this->assertNull($registry->byHost('alias.alpha.example'));
+  $duplicate=$payload;$duplicate['slug']='beta';$duplicate['name']='Beta';
+  $this->signed('POST','tenants',$duplicate,(string)Str::uuid())->assertUnprocessable();
  }
 }
