@@ -22,6 +22,7 @@ class PasswordResetTest extends TestCase
 
     public function test_usuario_ativo_solicita_reset_e_enfileira_na_comunicacao(): void
     {
+        Notification::fake();
         config(['acesso.password_reset_frontend_url' => 'https://sierra.acadsoft.com.br']);
         config(['acesso.password_reset_logo_url' => 'https://sierra.acadsoft.com.br/logo.png']);
 
@@ -136,7 +137,7 @@ class PasswordResetTest extends TestCase
         $this->postJson('/api/v1/auth/forgot-password', ['email' => $usuario->email])
             ->assertOk()
             ->assertJsonPath('message', self::SENT_MESSAGE);
-        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $usuario->email]);
+        $this->assertDatabaseMissing('password_resets', ['email' => $usuario->email]);
     }
 
     public function test_timeout_da_comunicacao_nao_confirma_envio(): void
