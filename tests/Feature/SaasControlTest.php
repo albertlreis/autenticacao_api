@@ -140,4 +140,21 @@ final class SaasControlTest extends TestCase {
   $this->assertArrayNotHasKey('details',$health);
   $this->assertArrayNotHasKey('source',$health);
  }
+
+ public function test_operational_steps_and_health_gate_manual_activation():void {
+  $id=$this->createTenant();$db=DB::connection('saas_central');
+  $db->table('saas_tenants')->where('id',$id)->update(['status'=>'provisioning','installation_type'=>'dedicated','database_name'=>'sierra']);
+  config(['saas.dedicated_tenant_id'=>$id,'database.connections.mysql.database'=>'sierra']);
+  $this->artisan('saas:mark-provision-step',['tenant'=>$id,'step'=>'capacity'])->assertExitCode(0);
+  foreach(['connection-profile','database','authentication-migrations','inventory-migrations','initial-data','administrator','storage','https','validation','backup','restore'] as $step){
+   $db->table('saas_provision_steps')->insert(['tenant_id'=>$id,'step'=>$step,'state'=>'completed','created_at'=>now(),'updated_at'=>now()]);
+  }
+  $db->table('saas_tenant_health')->insert(['tenant_id'=>$id,'api_ok'=>true,'worker_ok'=>true,'scheduler_ok'=>true,'backup_ok'=>true,
+   'backup_age_seconds'=>60,'queue_pending'=>0,'queue_oldest_seconds'=>0,'source'=>'test','observed_at'=>now(),'created_at'=>now(),'updated_at'=>now()]);
+  $this->artisan('saas:activate-tenant',['tenant'=>$id])->assertExitCode(1);
+  \Illuminate\Support\Facades\Password::shouldReceive('sendResetLink')->once()->andReturn(\Illuminate\Support\Facades\Password::RESET_LINK_SENT);
+  $this->artisan('saas:activate-tenant',['tenant'=>$id,'--confirm'=>true])->assertExitCode(0);
+  $tenant=$db->table('saas_tenants')->where('id',$id)->first();$this->assertSame('active',$tenant->status);$this->assertNotNull($tenant->provisioned_at);
+  $this->assertSame('completed',$db->table('saas_provision_steps')->where('tenant_id',$id)->where('step','invitation')->value('state'));
+ }
 }

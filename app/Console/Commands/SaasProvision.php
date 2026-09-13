@@ -71,10 +71,10 @@ final class SaasProvision extends Command
                 $input = new StringInput('');
                 $command = 'saas:bootstrap-admin '.$input->escapeToken($tenant->admin_email).' '.$input->escapeToken($tenant->admin_name);
                 $this->runStep(base_path(), $id, $command, 'administrator');
-                if ($this->option('defer-activation')) { $this->event($id, 'provision.application.ready'); continue; }
-                $db->table('saas_tenants')->where('id', $id)->update(['status' => 'active', 'provisioned_at' => now(), 'provision_requested_at' => null, 'updated_at' => now()]);
-                $this->event($id, 'provision.completed');
-                $this->info('Provisioned: '.$tenant->slug);
+                // Application preparation never activates a customer. Infrastructure, restore,
+                // runtime health and invitation are verified separately by the operator.
+                $this->event($id, 'provision.application.ready');
+                $this->info('Application ready for operational validation: '.$tenant->slug);
             } catch (\Throwable $e) {
                 $db->table('saas_tenants')->where('id', $id)->update(['status' => 'failed', 'provision_requested_at' => null, 'updated_at' => now()]);
                 // Do not persist command output, SQL bindings or secrets in the public event log.
