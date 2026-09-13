@@ -115,7 +115,9 @@ final class ControlController
             $this->db()->table('saas_tenant_domains')->where('id', $record->id)->update([
                 'verification_status' => 'verified', 'verified_at' => now(),
                 'verified_by' => $request->attributes->get('control_actor'), 'verification_notes' => $data['reason'],
-                'active' => true, 'updated_at' => now(),
+                // Approval records the operational verification. Activation is a separate,
+                // versioned tenant update after routing, TLS and host smoke tests succeed.
+                'active' => false, 'updated_at' => now(),
             ]);
             return [$before, (array) $this->db()->table('saas_tenant_domains')->where('id', $record->id)->first()];
         });

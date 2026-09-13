@@ -69,7 +69,7 @@ final class SaasControlTest extends TestCase {
   $this->assertNull($registry->byHost('ALIAS.ALPHA.EXAMPLE.'));
   $custom=collect($tenant['domains'])->firstWhere('host','erp.alpha.example');
   $this->signed('POST','tenants/'.$tenant['id'].'/domains/'.$custom['id'].'/approve',['reason'=>'DNS e TLS validados'],(string)Str::uuid())
-   ->assertOk()->assertJsonPath('domain.verification_status','verified')->assertJsonPath('domain.active',1);
+   ->assertOk()->assertJsonPath('domain.verification_status','verified')->assertJsonPath('domain.active',0);
   DB::connection('saas_central')->table('saas_tenants')->where('id',$tenant['id'])->update(['status'=>'active','provisioned_at'=>now()]);
   $updatedDomains=collect($this->signed('GET','tenants/'.$tenant['id'])->assertOk()->json('tenant.domains'))->map(fn($domain)=>[
    'host'=>$domain['host'],'canonical'=>$domain['host']==='erp.alpha.example','active'=>$domain['host']!=='alias.alpha.example'])->values()->all();
