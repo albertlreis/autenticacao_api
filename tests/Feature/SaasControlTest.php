@@ -43,7 +43,19 @@ final class SaasControlTest extends TestCase {
  }
  public function test_error_responses_roll_back_partial_writes():void{
   Route::middleware(['api',\App\Saas\ControlAuth::class,\App\Saas\ControlIdempotency::class])->post('api/v1/control/fault',function(){DB::connection('saas_central')->table('saas_events')->insert(['action'=>'must.rollback','created_at'=>now(),'updated_at'=>now()]);return response()->json(['message'=>'failure'],500);})->withoutMiddleware(['throttle:api',\App\Saas\RequireModule::class]);
-  $this->signed('POST','fault',[],(string)Str::uuid())->assertStatus(500);$this->assertSame(0,DB::connection('saas_central')->table('saas_events')->count());$this->assertSame('failed',DB::connection('saas_central')->table('saas_control_operations')->value('state'));
+  $this->signed('POST','fault',[],(string)Str::uuid())->assertStatus(500);$this->assertSame(0,DB::connection('saas_central')->table('saas_events')->count());$this->assertSame('uncertain',DB::connection('saas_central')->table('saas_control_operations')->value('state'));
+ }
+
+ public function test_unexpected_failure_is_reconcilable_and_never_replayed():void{
+  $calls=0;
+  Route::middleware(['api',\App\Saas\ControlAuth::class,\App\Saas\ControlIdempotency::class])->post('api/v1/control/exception',function()use(&$calls){$calls++;DB::connection('saas_central')->table('saas_events')->insert(['action'=>'must.rollback','created_at'=>now(),'updated_at'=>now()]);throw new \RuntimeException('provider timeout');})->withoutMiddleware(['throttle:api',\App\Saas\RequireModule::class]);
+  $operation=(string)Str::uuid();
+  $this->signed('POST','exception',[],$operation)->assertStatus(500)->assertJsonPath('operation_id',$operation);
+  $this->assertSame(0,DB::connection('saas_central')->table('saas_events')->count());
+  $this->assertSame('uncertain',DB::connection('saas_central')->table('saas_control_operations')->value('state'));
+  $this->signed('POST','exception',[],$operation)->assertStatus(500)->assertJsonPath('operation_id',$operation);
+  $this->assertSame(1,$calls);
+  $this->signed('GET','operations/'.$operation)->assertOk()->assertJsonPath('state','uncertain');
  }
 
  public function test_invitation_is_sent_once_and_uncertain_delivery_is_not_repeated():void {

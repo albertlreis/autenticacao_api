@@ -94,11 +94,13 @@ final class ControlController
     public function provision(Request $request, string $id)
     {
         abort_unless(config('saas_control.provision_enabled'), 409, 'Provisionamento ainda não habilitado.');
-        $tenant = $this->db()->table('saas_tenants')->where('id', $id)->lockForUpdate()->first();
-        abort_unless($tenant, 404);
-        abort_unless($tenant->installation_type === 'shared' && in_array($tenant->status, ['pending', 'failed'], true) && !$tenant->provision_requested_at, 409, 'Preparação já solicitada ou não permitida.');
-        $this->db()->table('saas_tenants')->where('id', $id)->update(['provision_requested_at' => now(), 'updated_at' => now()]);
-        $this->event($request, $id, 'provision.requested', null, null);
+        $this->db()->transaction(function () use ($request, $id) {
+            $tenant = $this->db()->table('saas_tenants')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($tenant, 404);
+            abort_unless($tenant->installation_type === 'shared' && in_array($tenant->status, ['pending', 'failed'], true) && !$tenant->provision_requested_at, 409, 'Preparação já solicitada ou não permitida.');
+            $this->db()->table('saas_tenants')->where('id', $id)->update(['provision_requested_at' => now(), 'updated_at' => now()]);
+            $this->event($request, $id, 'provision.requested', null, null);
+        });
         return response()->json(['state' => 'requested'], 202);
     }
 
