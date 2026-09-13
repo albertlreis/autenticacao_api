@@ -183,16 +183,15 @@ class AuthController extends Controller
 
         $usuario = AcessoUsuario::where('email', $email)->first();
 
-        if (!$usuario) {
+        if (!$usuario || !$usuario->ativo) {
+            RateLimiter::hit($cooldownKey, $passwordResetThrottle);
+            SierraLog::auth('auth.password_reset.ignored', [
+                'reason' => $usuario ? 'inactive' : 'unknown',
+            ]);
             return response()->json([
-                'message' => 'E-mail não encontrado em nossa base de dados.',
-            ], 404);
-        }
-
-        if (!$usuario->ativo) {
-            return response()->json([
-                'message' => 'Este usuário está inativo. Entre em contato com o administrador.',
-            ], 403);
+                'message' => self::PASSWORD_RESET_SENT_MESSAGE,
+                'retry_after_seconds' => $passwordResetThrottle,
+            ]);
         }
 
         try {
@@ -210,9 +209,11 @@ class AuthController extends Controller
                 'exception' => $e,
             ], 'error');
 
+            RateLimiter::hit($cooldownKey, $passwordResetThrottle);
             return response()->json([
-                'message' => 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.',
-            ], 502);
+                'message' => self::PASSWORD_RESET_SENT_MESSAGE,
+                'retry_after_seconds' => $passwordResetThrottle,
+            ]);
         }
 
         RateLimiter::hit($cooldownKey, $passwordResetThrottle);

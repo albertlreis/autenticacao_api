@@ -13,7 +13,7 @@ class PasswordResetCommunicationClientTest extends TestCase
     public function test_envia_token_como_variavel_sensivel_e_aceita_apenas_queued(): void
     {
         config([
-            'services.comms' => ['base_url' => 'https://communication.test/api', 'api_key' => 'key', 'api_secret' => 'secret', 'timeout' => 3],
+            'services.comms' => ['base_url' => 'https://communication.test/api', 'api_key' => 'key', 'api_secret' => 'secret', 'timeout' => 3, 'enabled' => true, 'store_only' => false],
             'acesso.password_reset_logo_url' => 'https://belem.test/logo.png',
             'auth.passwords.users.expire' => 60,
         ]);
@@ -46,10 +46,24 @@ class PasswordResetCommunicationClientTest extends TestCase
         );
     }
 
-    public function test_rejeita_resposta_stored(): void
+    public function test_aceita_resposta_stored_quando_store_only_esta_ativo(): void
     {
-        config(['services.comms' => ['base_url' => 'https://communication.test/api', 'api_key' => 'key', 'api_secret' => 'secret', 'timeout' => 3]]);
+        config(['services.comms' => ['base_url' => 'https://communication.test/api', 'api_key' => 'key', 'api_secret' => 'secret', 'timeout' => 3, 'enabled' => true, 'store_only' => true]]);
         Http::fake(['*' => Http::response(['id' => 99, 'status' => 'stored', 'messages' => [['status' => 'stored']]], 201)]);
+
+        $result = app(PasswordResetCommunicationClient::class)->queue(
+            new AcessoUsuario(['email' => 'user@example.test']),
+            'https://belem.test/resetar-senha?token=token-secreto'
+        );
+
+        $this->assertSame(99, $result['request_id']);
+        Http::assertSent(fn ($request) => $request['store_only'] === true);
+    }
+
+    public function test_recusa_envio_quando_integracao_esta_desabilitada(): void
+    {
+        config(['services.comms.enabled' => false]);
+        Http::fake();
 
         $this->expectException(RuntimeException::class);
         app(PasswordResetCommunicationClient::class)->queue(

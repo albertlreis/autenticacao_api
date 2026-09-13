@@ -67,20 +67,20 @@ class PasswordResetTest extends TestCase
         $this->assertStringNotContainsString('localhost:3000', $mail->viewData['resetUrl']);
     }
 
-    public function test_email_inexistente_retorna_mensagem_especifica_e_nao_envia_notificacao(): void
+    public function test_email_inexistente_retorna_mensagem_generica_e_nao_envia_notificacao(): void
     {
         Notification::fake();
 
         $this->postJson('/api/v1/auth/forgot-password', [
             'email' => 'nao-existe@example.test',
         ])
-            ->assertNotFound()
-            ->assertJsonPath('message', 'E-mail não encontrado em nossa base de dados.');
+            ->assertOk()
+            ->assertJsonPath('message', self::SENT_MESSAGE);
 
         Notification::assertNothingSent();
     }
 
-    public function test_usuario_inativo_retorna_mensagem_especifica_e_nao_envia_notificacao(): void
+    public function test_usuario_inativo_retorna_mensagem_generica_e_nao_envia_notificacao(): void
     {
         Notification::fake();
 
@@ -94,8 +94,8 @@ class PasswordResetTest extends TestCase
         $this->postJson('/api/v1/auth/forgot-password', [
             'email' => 'inativo@example.test',
         ])
-            ->assertForbidden()
-            ->assertJsonPath('message', 'Este usuário está inativo. Entre em contato com o administrador.');
+            ->assertOk()
+            ->assertJsonPath('message', self::SENT_MESSAGE);
 
         Notification::assertNothingSent();
     }
@@ -134,8 +134,8 @@ class PasswordResetTest extends TestCase
             ->andThrow(new \RuntimeException('Mensagem não enfileirada'));
 
         $this->postJson('/api/v1/auth/forgot-password', ['email' => $usuario->email])
-            ->assertStatus(502)
-            ->assertJsonPath('message', 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.');
+            ->assertOk()
+            ->assertJsonPath('message', self::SENT_MESSAGE);
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => $usuario->email]);
     }
 
@@ -152,8 +152,8 @@ class PasswordResetTest extends TestCase
             ->andThrow(new \RuntimeException('Timeout simulado'));
 
         $this->postJson('/api/v1/auth/forgot-password', ['email' => $usuario->email])
-            ->assertStatus(502)
-            ->assertJsonPath('message', 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.');
+            ->assertOk()
+            ->assertJsonPath('message', self::SENT_MESSAGE);
     }
 
     public function test_token_valido_redefine_senha_limpa_obrigatoriedade_e_revoga_sessoes(): void

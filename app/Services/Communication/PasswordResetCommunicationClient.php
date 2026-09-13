@@ -16,8 +16,9 @@ class PasswordResetCommunicationClient
         $baseUrl = rtrim((string) config('services.comms.base_url'), '/');
         $apiKey = trim((string) config('services.comms.api_key'));
         $apiSecret = trim((string) config('services.comms.api_secret'));
+        $storeOnly = (bool) config('services.comms.store_only', true);
 
-        if ($baseUrl === '' || $apiKey === '' || $apiSecret === '') {
+        if (! config('services.comms.enabled') || $baseUrl === '' || $apiKey === '' || $apiSecret === '') {
             throw new RuntimeException('Communication API is not configured.');
         }
 
@@ -38,7 +39,7 @@ class PasswordResetCommunicationClient
                     'campaign' => 'password_reset',
                     'external_id' => $reference,
                     'correlation_id' => $correlationId,
-                    'store_only' => false,
+                    'store_only' => $storeOnly,
                     'payload' => [
                         'messages' => [[
                             'channel' => 'email',
@@ -60,11 +61,12 @@ class PasswordResetCommunicationClient
         }
 
         $messages = $response->json('messages');
+        $expectedStatus = $storeOnly ? 'stored' : 'queued';
         $queued = $response->successful()
-            && $response->json('status') === 'queued'
+            && $response->json('status') === $expectedStatus
             && is_array($messages)
             && count($messages) > 0
-            && collect($messages)->every(fn ($message) => ($message['status'] ?? null) === 'queued');
+            && collect($messages)->every(fn ($message) => ($message['status'] ?? null) === $expectedStatus);
 
         if (!$queued) {
             throw new RuntimeException('Communication API did not queue the message.');
