@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 final class SaasControlTest extends TestCase {
  public function createApplication(){ $a=require __DIR__.'/../../bootstrap/app.php';$a->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();return $a; }
- protected function setUp():void{parent::setUp();config(['saas.enabled'=>true,'saas.base_domain'=>'sierra.test','saas.scheme'=>'https','saas.dedicated_tenant_id'=>null,'saas_control.enabled'=>true,'saas_control.host'=>'sierra-control.internal','saas_control.provision_enabled'=>true,'saas_control.keys.test'=>['secret'=>str_repeat('x',40),'scopes'=>['sierra:manage']],'database.connections.saas_central'=>['driver'=>'sqlite','database'=>':memory:','prefix'=>'']]);DB::purge('saas_central');foreach(['2026_09_07_000001_create_saas_platform.php','2026_09_09_000001_add_webleap_control.php','2026_09_09_000002_create_saas_invitations.php','2026_09_10_000001_create_saas_tenant_domains.php'] as $f)(require base_path('database/saas/'.$f))->up();Route::middleware('api')->prefix('api')->group(base_path('routes/control.php'));}
+ protected function setUp():void{parent::setUp();config(['saas.enabled'=>true,'saas.base_domain'=>'sierra.test','saas.scheme'=>'https','saas.url_port'=>5173,'saas.dedicated_tenant_id'=>null,'saas_control.enabled'=>true,'saas_control.host'=>'sierra-control.internal','saas_control.provision_enabled'=>true,'saas_control.keys.test'=>['secret'=>str_repeat('x',40),'scopes'=>['sierra:manage']],'database.connections.saas_central'=>['driver'=>'sqlite','database'=>':memory:','prefix'=>'']]);DB::purge('saas_central');foreach(['2026_09_07_000001_create_saas_platform.php','2026_09_09_000001_add_webleap_control.php','2026_09_09_000002_create_saas_invitations.php','2026_09_10_000001_create_saas_tenant_domains.php'] as $f)(require base_path('database/saas/'.$f))->up();Route::middleware('api')->prefix('api')->group(base_path('routes/control.php'));}
  private function signed($method,$path,$data=[],$id=null,$nonce=null,$host='sierra-control.internal',$actor='webleap:1'){
   $body=$method==='GET'?'':json_encode($data);$time=(string)time();$nonce??=bin2hex(random_bytes(32));$uri='/api/v1/control/'.$path;
   $canonical=implode("\n",[$method,$uri,hash('sha256',$body),$actor,$time,$nonce,$id??'']);
@@ -61,16 +61,41 @@ final class SaasControlTest extends TestCase {
  }
  public function test_custom_domains_resolve_and_canonical_domain_controls_urls():void {
   $payload=['name'=>'Alpha','slug'=>'alpha','admin_name'=>'Gestor','admin_email'=>'gestor@example.test','modules'=>['estoque'],
-   'domains'=>[['host'=>'erp.alpha.example','canonical'=>true,'active'=>true],['host'=>'alias.alpha.example','canonical'=>false,'active'=>true]]];
+   'domains'=>[['host'=>'alpha.sierra.test','canonical'=>true,'active'=>true],['host'=>'erp.alpha.example','canonical'=>false,'active'=>false],['host'=>'alias.alpha.example','canonical'=>false,'active'=>false]]];
   $tenant=$this->signed('POST','tenants',$payload,(string)Str::uuid())->assertCreated()
-   ->assertJsonPath('tenant.url','https://erp.alpha.example:5173')->assertJsonCount(3,'tenant.domains')->json('tenant');
+   ->assertJsonPath('tenant.url','https://alpha.sierra.test:5173')->assertJsonCount(3,'tenant.domains')->json('tenant');
   $registry=app(\App\Saas\TenantRegistry::class);
-  $this->assertSame($tenant['id'],$registry->byHost('ALIAS.ALPHA.EXAMPLE.')?->id);
+  $this->assertNull($registry->byHost('ALIAS.ALPHA.EXAMPLE.'));
+  $custom=collect($tenant['domains'])->firstWhere('host','erp.alpha.example');
+  $this->signed('POST','tenants/'.$tenant['id'].'/domains/'.$custom['id'].'/approve',['reason'=>'DNS e TLS validados'],(string)Str::uuid())
+   ->assertOk()->assertJsonPath('domain.verification_status','verified')->assertJsonPath('domain.active',1);
+  DB::connection('saas_central')->table('saas_tenants')->where('id',$tenant['id'])->update(['status'=>'active','provisioned_at'=>now()]);
+  $updatedDomains=collect($this->signed('GET','tenants/'.$tenant['id'])->assertOk()->json('tenant.domains'))->map(fn($domain)=>[
+   'host'=>$domain['host'],'canonical'=>$domain['host']==='erp.alpha.example','active'=>$domain['host']!=='alias.alpha.example'])->values()->all();
+  $this->signed('PATCH','tenants/'.$tenant['id'],['version'=>1,'domains'=>$updatedDomains,'reason'=>'Tornar domínio aprovado canônico'],(string)Str::uuid())
+   ->assertOk()->assertJsonPath('tenant.url','https://erp.alpha.example:5173');
+  $this->assertSame($tenant['id'],$registry->byHost('ERP.ALPHA.EXAMPLE.')?->id);
   $this->assertSame('erp.alpha.example',$registry->byHost('alpha.sierra.test')?->canonical_host);
   $this->assertNull($registry->byHost('unknown.example'));
-  DB::connection('saas_central')->table('saas_tenant_domains')->where('host','alias.alpha.example')->update(['active'=>false]);
   $this->assertNull($registry->byHost('alias.alpha.example'));
   $duplicate=$payload;$duplicate['slug']='beta';$duplicate['name']='Beta';
   $this->signed('POST','tenants',$duplicate,(string)Str::uuid())->assertUnprocessable();
+ }
+
+ public function test_custom_domain_requires_approval_and_can_be_rejected():void {
+  $payload=['name'=>'Alpha','slug'=>'alpha','admin_name'=>'Gestor','admin_email'=>'gestor@example.test','modules'=>['estoque'],
+   'domains'=>[['host'=>'alpha.sierra.test','canonical'=>true,'active'=>true],['host'=>'erp.alpha.example','canonical'=>false,'active'=>true]]];
+  $this->signed('POST','tenants',$payload,(string)Str::uuid())->assertUnprocessable();
+  $payload['domains'][1]['active']=false;
+  $tenant=$this->signed('POST','tenants',$payload,(string)Str::uuid())->assertCreated()->json('tenant');
+  $custom=collect($tenant['domains'])->firstWhere('host','erp.alpha.example');
+  $this->signed('POST','tenants/'.$tenant['id'].'/domains/'.$custom['id'].'/reject',['reason'=>'DNS não autorizado'],(string)Str::uuid())
+   ->assertOk()->assertJsonPath('domain.verification_status','rejected')->assertJsonPath('domain.active',0);
+ }
+
+ public function test_default_https_port_is_omitted_from_tenant_url():void {
+  config(['saas.url_port'=>443]);
+  $id=$this->createTenant();
+  $this->signed('GET','tenants/'.$id)->assertOk()->assertJsonPath('tenant.url','https://alpha.sierra.test');
  }
 }

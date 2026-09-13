@@ -76,7 +76,7 @@ final class ControlController
                 abort_unless((int) $tenant->contract_version === $data['version'], 409, 'Contrato alterado por outro administrador. Atualize a página.');
                 abort_unless(in_array($tenant->status, ['active', 'suspended'], true) && $tenant->provisioned_at, 409, 'Ambiente ainda não preparado.');
                 $before = $this->payload($tenant);
-                if (array_key_exists('domains', $data)) $this->replaceDomains($id, $this->domains($tenant->slug, $data['domains']));
+                if (array_key_exists('domains', $data)) $this->replaceDomains($id, $this->domains($tenant->slug, $data['domains'], $id));
                 $changes = ['contract_version' => $tenant->contract_version + 1, 'updated_at' => now()];
                 if (isset($data['status'])) $changes['status'] = $data['status'];
                 if (isset($data['modules'])) $changes['modules'] = json_encode($data['modules']);
@@ -102,6 +102,49 @@ final class ControlController
         return response()->json(['state' => 'requested'], 202);
     }
 
+    public function approveDomain(Request $request, string $id, string $domain)
+    {
+        $data = $request->validate(['reason' => 'required|string|max:500']);
+        [$before, $after] = $this->db()->transaction(function () use ($id, $domain, $request, $data) {
+            $tenant = $this->db()->table('saas_tenants')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($tenant, 404);
+            $record = $this->db()->table('saas_tenant_domains')->where('tenant_id', $id)->where('id', $domain)->lockForUpdate()->first();
+            abort_unless($record, 404);
+            abort_if($record->host === $this->standardHost($tenant->slug), 409, 'O subdomínio Sierra já é verificado automaticamente.');
+            $before = (array) $record;
+            $this->db()->table('saas_tenant_domains')->where('id', $record->id)->update([
+                'verification_status' => 'verified', 'verified_at' => now(),
+                'verified_by' => $request->attributes->get('control_actor'), 'verification_notes' => $data['reason'],
+                'active' => true, 'updated_at' => now(),
+            ]);
+            return [$before, (array) $this->db()->table('saas_tenant_domains')->where('id', $record->id)->first()];
+        });
+        $this->event($request, $id, 'domain.approved', $before, $after, $data['reason']);
+        return response()->json(['domain' => $after]);
+    }
+
+    public function rejectDomain(Request $request, string $id, string $domain)
+    {
+        $data = $request->validate(['reason' => 'required|string|max:500']);
+        [$before, $after] = $this->db()->transaction(function () use ($id, $domain, $request, $data) {
+            $tenant = $this->db()->table('saas_tenants')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($tenant, 404);
+            $record = $this->db()->table('saas_tenant_domains')->where('tenant_id', $id)->where('id', $domain)->lockForUpdate()->first();
+            abort_unless($record, 404);
+            abort_if($record->host === $this->standardHost($tenant->slug), 409, 'O subdomínio Sierra não pode ser rejeitado.');
+            abort_if((bool) $record->is_canonical, 409, 'Defina outro domínio canônico antes de rejeitar este domínio.');
+            $before = (array) $record;
+            $this->db()->table('saas_tenant_domains')->where('id', $record->id)->update([
+                'verification_status' => 'rejected', 'verified_at' => null,
+                'verified_by' => $request->attributes->get('control_actor'), 'verification_notes' => $data['reason'],
+                'active' => false, 'is_canonical' => false, 'updated_at' => now(),
+            ]);
+            return [$before, (array) $this->db()->table('saas_tenant_domains')->where('id', $record->id)->first()];
+        });
+        $this->event($request, $id, 'domain.rejected', $before, $after, $data['reason']);
+        return response()->json(['domain' => $after]);
+    }
+
     private function rules(bool $create): array
     {
         $rules = ['domains' => 'sometimes|array|min:1|max:20', 'domains.*.host' => 'required|string|max:253|distinct',
@@ -112,10 +155,13 @@ final class ControlController
             'status' => 'sometimes|in:active,suspended', 'reason' => 'required|string|max:500'];
     }
 
-    private function domains(string $slug, ?array $input): array
+    private function domains(string $slug, ?array $input, ?string $tenantId = null): array
     {
-        $standard = TenantDomains::normalize($slug.'.'.config('saas.base_domain'));
+        $standard = $this->standardHost($slug);
         $domains = $input ?? [['host' => $standard, 'canonical' => true, 'active' => true]];
+        $existing = $tenantId
+            ? $this->db()->table('saas_tenant_domains')->where('tenant_id', $tenantId)->get()->keyBy('host')
+            : collect();
         $normalized = [];
         foreach ($domains as $domain) {
             try { $host = TenantDomains::normalize($domain['host']); }
@@ -123,9 +169,27 @@ final class ControlController
             if (in_array($host, [strtolower(config('saas.base_domain')), strtolower(config('saas.platform_host')), strtolower(config('saas_control.host'))], true)) {
                 throw ValidationException::withMessages(['domains' => 'Domínio reservado.']);
             }
-            $normalized[$host] = ['host' => $host, 'canonical' => (bool) $domain['canonical'], 'active' => (bool) $domain['active']];
+            $isStandard = $host === $standard;
+            $current = $existing->get($host);
+            $verified = $isStandard || ($current && $current->verification_status === 'verified');
+            if (!$verified && ((bool) $domain['canonical'] || (bool) $domain['active'])) {
+                throw ValidationException::withMessages(['domains' => 'Aprove o domínio personalizado antes de ativá-lo ou torná-lo canônico.']);
+            }
+            $normalized[$host] = [
+                'host' => $host,
+                'canonical' => $verified && (bool) $domain['canonical'],
+                'active' => $verified && (bool) $domain['active'],
+                'verification_status' => $isStandard ? 'verified' : ($current->verification_status ?? 'pending'),
+                'verified_at' => $isStandard ? ($current->verified_at ?? now()) : ($current->verified_at ?? null),
+                'verified_by' => $isStandard ? ($current->verified_by ?? 'system:auto') : ($current->verified_by ?? null),
+                'verification_notes' => $isStandard ? ($current->verification_notes ?? 'Subdomínio Sierra verificado automaticamente.') : ($current->verification_notes ?? null),
+            ];
         }
-        if (!isset($normalized[$standard])) $normalized[$standard] = ['host' => $standard, 'canonical' => false, 'active' => true];
+        if (!isset($normalized[$standard])) $normalized[$standard] = [
+            'host' => $standard, 'canonical' => !collect($normalized)->contains('canonical', true), 'active' => true,
+            'verification_status' => 'verified', 'verified_at' => now(), 'verified_by' => 'system:auto',
+            'verification_notes' => 'Subdomínio Sierra verificado automaticamente.',
+        ];
         $canonical = array_filter($normalized, fn ($domain) => $domain['canonical'] && $domain['active']);
         if (count($canonical) !== 1) throw ValidationException::withMessages(['domains' => 'Informe exatamente um domínio canônico ativo.']);
         return array_values($normalized);
@@ -133,10 +197,21 @@ final class ControlController
 
     private function replaceDomains(string $tenantId, array $domains): void
     {
-        $this->db()->table('saas_tenant_domains')->where('tenant_id', $tenantId)->delete();
-        foreach ($domains as $domain) $this->db()->table('saas_tenant_domains')->insert(['tenant_id' => $tenantId, 'host' => $domain['host'],
-            'is_canonical' => $domain['canonical'], 'active' => $domain['active'], 'created_at' => now(), 'updated_at' => now()]);
+        $hosts = [];
+        foreach ($domains as $domain) {
+            $hosts[] = $domain['host'];
+            $this->db()->table('saas_tenant_domains')->updateOrInsert(
+                ['tenant_id' => $tenantId, 'host' => $domain['host']],
+                ['is_canonical' => $domain['canonical'], 'active' => $domain['active'],
+                    'verification_status' => $domain['verification_status'], 'verified_at' => $domain['verified_at'],
+                    'verified_by' => $domain['verified_by'], 'verification_notes' => $domain['verification_notes'],
+                    'updated_at' => now(), 'created_at' => now()]
+            );
+        }
+        $this->db()->table('saas_tenant_domains')->where('tenant_id', $tenantId)->whereNotIn('host', $hosts)->delete();
     }
+
+    private function standardHost(string $slug): string { return TenantDomains::normalize($slug.'.'.config('saas.base_domain')); }
 
     private function tenant(string $id) { $tenant = $this->db()->table('saas_tenants')->where('id', $id)->first(); abort_unless($tenant, 404); return $tenant; }
     private function modules(array $modules): array { try { return ModuleCatalog::validate($modules); } catch (\InvalidArgumentException $e) { throw ValidationException::withMessages(['modules' => $e->getMessage()]); } }

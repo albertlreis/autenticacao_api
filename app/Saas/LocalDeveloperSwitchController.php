@@ -48,9 +48,8 @@ final class LocalDeveloperSwitchController
             'details' => json_encode(['from' => $source?->id, 'to' => $target->id, 'email' => $targetUser->email]),
             'created_at' => now(), 'updated_at' => now(),
         ]);
-        $port = config('saas.url_port') ? ':'.config('saas.url_port') : '';
         return response()->json([
-            'target_url' => config('saas.scheme').'://'.$target->slug.'.'.config('saas.base_domain').$port,
+            'target_url' => TenantDomains::url($target),
             'access_token' => $token, 'expires_in' => $expiresAt->diffInSeconds(now()),
             'user' => ['id' => $targetUser->id, 'nome' => $targetUser->nome, 'email' => $targetUser->email,
                 'perfis' => TenantAccess::names((int) $targetUser->id), 'permissoes' => $permissions->get($targetUser), ...$context->payload()],
@@ -59,7 +58,7 @@ final class LocalDeveloperSwitchController
 
     private function authorize(Request $request): AcessoUsuario
     {
-        abort_unless(app()->environment('local') && config('saas.local_developer_switch'), 404);
+        abort_unless(app()->environment(['local', 'testing']) && config('saas.local_developer_switch'), 404);
         $user = $request->user();
         abort_unless($user instanceof AcessoUsuario && $this->isDeveloper($user), 403);
         return $user;

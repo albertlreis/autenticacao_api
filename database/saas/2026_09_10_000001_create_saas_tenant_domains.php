@@ -15,7 +15,11 @@ return new class extends Migration {
             $table->uuid('tenant_id')->index();
             $table->string('host', 253)->unique();
             $table->boolean('is_canonical')->default(false);
-            $table->boolean('active')->default(true);
+            $table->boolean('active')->default(false);
+            $table->string('verification_status', 20)->default('pending')->index();
+            $table->timestamp('verified_at')->nullable();
+            $table->string('verified_by', 191)->nullable();
+            $table->text('verification_notes')->nullable();
             $table->timestamps();
             $table->foreign('tenant_id')->references('id')->on('saas_tenants')->cascadeOnDelete();
             $table->index(['tenant_id', 'is_canonical']);
@@ -28,6 +32,10 @@ return new class extends Migration {
                 'host' => strtolower($tenant->slug.'.'.$base),
                 'is_canonical' => true,
                 'active' => true,
+                'verification_status' => 'verified',
+                'verified_at' => now(),
+                'verified_by' => 'system:migration',
+                'verification_notes' => 'Subdomínio Sierra verificado automaticamente.',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

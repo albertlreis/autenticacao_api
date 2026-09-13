@@ -52,6 +52,19 @@ class LocalDeveloperSwitchTest extends SaasIsolationTest
         });
     }
 
+    public function test_production_build_does_not_register_the_switch_route(): void
+    {
+        $environment = $this->app['env'];
+        $this->app['env'] = 'production';
+        config(['saas.local_developer_switch' => true]);
+
+        try {
+            $this->getJson('/api/v1/dev/tenants')->assertNotFound();
+        } finally {
+            $this->app['env'] = $environment;
+        }
+    }
+
     public function test_local_switch_routes_belong_to_the_base_module(): void
     {
         $this->assertSame(['base'], config('saas_routes.'.LocalDeveloperSwitchController::class));

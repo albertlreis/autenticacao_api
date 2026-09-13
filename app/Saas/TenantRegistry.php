@@ -14,7 +14,7 @@ final class TenantRegistry
         try { $host = TenantDomains::normalize($host); } catch (\InvalidArgumentException) { return null; }
         $tenant = DB::connection('saas_central')->table('saas_tenant_domains as d')
             ->join('saas_tenants as t', 't.id', '=', 'd.tenant_id')
-            ->where('d.host', $host)->where('d.active', true)->select('t.*')->first();
+            ->where('d.host', $host)->where('d.active', true)->where('d.verification_status', 'verified')->select('t.*')->first();
         return $tenant && ($tenant->installation_type ?? 'shared') === 'shared' ? TenantDomains::attachCanonical($tenant) : null;
     }
 
