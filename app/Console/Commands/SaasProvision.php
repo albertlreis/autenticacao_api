@@ -73,6 +73,7 @@ final class SaasProvision extends Command
                 $this->runStep(base_path(), $id, $command, 'administrator');
                 // Application preparation never activates a customer. Infrastructure, restore,
                 // runtime health and invitation are verified separately by the operator.
+                $db->table('saas_tenants')->where('id', $id)->update(['provision_requested_at' => null, 'updated_at' => now()]);
                 $this->event($id, 'provision.application.ready');
                 $this->info('Application ready for operational validation: '.$tenant->slug);
             } catch (\Throwable $e) {
