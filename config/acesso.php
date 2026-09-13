@@ -15,7 +15,10 @@ return [
     'permissions_cache_ttl_hours' => (int) env('PERMISSIONS_CACHE_TTL_HOURS', 6),
 
     'password_reset_frontend_url' => env('PASSWORD_RESET_FRONTEND_URL', 'http://localhost:5173'),
-    'password_reset_logo_url' => env('PASSWORD_RESET_LOGO_URL'),
+    'password_reset_logo_url' => env(
+        'PASSWORD_RESET_LOGO_URL',
+        'https://sierra.acadsoft.com.br/logo.png'
+    ),
 
     'allowed_origins' => array_values(array_filter(array_map(
         static fn ($v) => trim($v),

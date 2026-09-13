@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AcessoRefreshToken;
 use App\Models\AcessoUsuario;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\Communication\PasswordResetCommunicationClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -17,11 +18,10 @@ class PasswordResetTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const GENERIC_MESSAGE = 'Se houver cadastro para este e-mail, enviaremos instruções para redefinir sua senha.';
+    private const SENT_MESSAGE = 'Solicitação recebida. O e-mail será enviado em instantes.';
 
-    public function test_usuario_ativo_solicita_reset_e_recebe_notificacao(): void
+    public function test_usuario_ativo_solicita_reset_e_enfileira_na_comunicacao(): void
     {
-        Notification::fake();
         config(['acesso.password_reset_frontend_url' => 'https://sierra.acadsoft.com.br']);
         config(['acesso.password_reset_logo_url' => 'https://sierra.acadsoft.com.br/logo.png']);
 
@@ -32,33 +32,25 @@ class PasswordResetTest extends TestCase
             'ativo' => true,
         ]);
 
+        $this->mock(PasswordResetCommunicationClient::class)
+            ->shouldReceive('queue')
+            ->once()
+            ->withArgs(function (AcessoUsuario $received, string $url) use ($usuario): bool {
+                return $received->is($usuario)
+                    && str_starts_with($url, 'https://sierra.acadsoft.com.br/resetar-senha?')
+                    && str_contains($url, 'token=')
+                    && str_contains($url, 'email=reset%40example.test');
+            })
+            ->andReturn(['request_id' => 123, 'correlation_id' => 'corr-test']);
+
         $this->postJson('/api/v1/auth/forgot-password', [
             'email' => 'RESET@example.test',
         ])
             ->assertOk()
-            ->assertJsonPath('message', self::GENERIC_MESSAGE);
+            ->assertJsonPath('message', self::SENT_MESSAGE)
+            ->assertJsonPath('retry_after_seconds', 60);
 
-        Notification::assertSentTo(
-            $usuario,
-            ResetPasswordNotification::class,
-            function (ResetPasswordNotification $notification) use ($usuario): bool {
-                $mail = $notification->toMail($usuario);
-                $html = view($mail->view, $mail->viewData)->render();
-
-                return $mail->subject === 'Redefinir senha - Sierra Móveis'
-                    && $mail->view === 'emails.password-reset'
-                    && str_contains((string) $mail->viewData['resetUrl'], 'https://sierra.acadsoft.com.br/resetar-senha?')
-                    && str_contains((string) $mail->viewData['resetUrl'], 'email=reset%40example.test')
-                    && $mail->viewData['logoUrl'] === 'https://sierra.acadsoft.com.br/logo.png'
-                    && str_contains($html, 'src="https://sierra.acadsoft.com.br/logo.png"')
-                    && ! str_contains($html, 'localhost')
-                    && str_contains($html, 'Sierra Móveis')
-                    && str_contains($html, 'Recebemos uma solicitação para redefinir a senha da sua conta na Sierra Móveis.')
-                    && ! str_contains($html, 'Regards')
-                    && ! str_contains($html, 'Laravel')
-                    && $notification->token !== '';
-            }
-        );
+        Notification::assertNothingSent();
     }
 
     public function test_notificacao_usa_frontend_local_na_porta_5173(): void
@@ -75,20 +67,20 @@ class PasswordResetTest extends TestCase
         $this->assertStringNotContainsString('localhost:3000', $mail->viewData['resetUrl']);
     }
 
-    public function test_email_inexistente_retorna_mensagem_generica_e_nao_envia_notificacao(): void
+    public function test_email_inexistente_retorna_mensagem_especifica_e_nao_envia_notificacao(): void
     {
         Notification::fake();
 
         $this->postJson('/api/v1/auth/forgot-password', [
             'email' => 'nao-existe@example.test',
         ])
-            ->assertOk()
-            ->assertJsonPath('message', self::GENERIC_MESSAGE);
+            ->assertNotFound()
+            ->assertJsonPath('message', 'E-mail não encontrado em nossa base de dados.');
 
         Notification::assertNothingSent();
     }
 
-    public function test_usuario_inativo_retorna_mensagem_generica_e_nao_envia_notificacao(): void
+    public function test_usuario_inativo_retorna_mensagem_especifica_e_nao_envia_notificacao(): void
     {
         Notification::fake();
 
@@ -102,10 +94,66 @@ class PasswordResetTest extends TestCase
         $this->postJson('/api/v1/auth/forgot-password', [
             'email' => 'inativo@example.test',
         ])
-            ->assertOk()
-            ->assertJsonPath('message', self::GENERIC_MESSAGE);
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Este usuário está inativo. Entre em contato com o administrador.');
 
         Notification::assertNothingSent();
+    }
+
+    public function test_limitador_da_aplicacao_informa_tempo_restante(): void
+    {
+        $usuario = AcessoUsuario::create([
+            'nome' => 'Usuario Muitas Solicitacoes',
+            'email' => 'muitas@example.test',
+            'senha' => Hash::make('SenhaForte123'),
+            'ativo' => true,
+        ]);
+
+        $this->mock(PasswordResetCommunicationClient::class)->shouldReceive('queue')->once()
+            ->andReturn(['request_id' => 124, 'correlation_id' => 'corr-limit']);
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => $usuario->email])->assertOk();
+
+        $response = $this->postJson('/api/v1/auth/forgot-password', ['email' => $usuario->email])
+            ->assertTooManyRequests()
+            ->assertJsonPath('message', 'Aguarde alguns instantes antes de solicitar um novo e-mail de redefinição.');
+
+        $this->assertGreaterThan(0, $response->json('retry_after_seconds'));
+        $this->assertLessThanOrEqual(60, $response->json('retry_after_seconds'));
+    }
+
+    public function test_recusa_da_comunicacao_nao_confirma_envio_e_exclui_token(): void
+    {
+        $usuario = AcessoUsuario::create([
+            'nome' => 'Usuario Falha',
+            'email' => 'falha@example.test',
+            'senha' => Hash::make('SenhaForte123'),
+            'ativo' => true,
+        ]);
+
+        $this->mock(PasswordResetCommunicationClient::class)->shouldReceive('queue')->once()
+            ->andThrow(new \RuntimeException('Mensagem não enfileirada'));
+
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => $usuario->email])
+            ->assertStatus(502)
+            ->assertJsonPath('message', 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.');
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $usuario->email]);
+    }
+
+    public function test_timeout_da_comunicacao_nao_confirma_envio(): void
+    {
+        $usuario = AcessoUsuario::create([
+            'nome' => 'Usuario Erro SMTP',
+            'email' => 'smtp@example.test',
+            'senha' => Hash::make('SenhaForte123'),
+            'ativo' => true,
+        ]);
+
+        $this->mock(PasswordResetCommunicationClient::class)->shouldReceive('queue')->once()
+            ->andThrow(new \RuntimeException('Timeout simulado'));
+
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => $usuario->email])
+            ->assertStatus(502)
+            ->assertJsonPath('message', 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.');
     }
 
     public function test_token_valido_redefine_senha_limpa_obrigatoriedade_e_revoga_sessoes(): void
