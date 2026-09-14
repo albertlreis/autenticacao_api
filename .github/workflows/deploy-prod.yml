@@ -232,6 +232,13 @@ jobs:
               update_env_file "$file" PASSWORD_RESET_FRONTEND_URL "$SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL_B64"
             }
 
+            harden_env_file() {
+              file="$1"
+              chown root:www-data "$file"
+              chmod 0640 "$file"
+              [ "$(stat -c '%U:%G %a' "$file")" = 'root:www-data 640' ]
+            }
+
             install_dependencies() {
               docker exec "$CONTAINER_NAME" composer install \
                 --working-dir=/var/www/html \
@@ -253,6 +260,7 @@ jobs:
             backup_env_file "$HOST_ENV_FILE"
             apply_runtime_env "$HOST_ENV_FILE"
             apply_mail_env "$HOST_ENV_FILE"
+            harden_env_file "$HOST_ENV_FILE"
 
             cd "$APP_DIR"
             if [ -n "$deploy_args" ]; then
@@ -264,6 +272,7 @@ jobs:
             install_dependencies
             apply_runtime_env "$HOST_ENV_FILE"
             apply_mail_env "$HOST_ENV_FILE"
+            harden_env_file "$HOST_ENV_FILE"
             docker cp "$HOST_ENV_FILE" "${CONTAINER_NAME}:/var/www/html/.env"
             docker restart "$CONTAINER_NAME"
             install -m 644 "$APP_DIR/html/docker/prod/nginx.conf" "$APP_DIR/nginx.conf"
