@@ -10,7 +10,10 @@ return new class extends Migration {
 
     public function up(): void
     {
-        Schema::connection($this->connection)->create('saas_tenant_domains', function (Blueprint $table) {
+        $connection = DB::connection($this->connection);
+        $driver = $connection->getDriverName();
+
+        Schema::connection($this->connection)->create('saas_tenant_domains', function (Blueprint $table) use ($driver) {
             $table->id();
             $table->uuid('tenant_id')->index();
             $table->string('host', 253)->unique();
@@ -21,19 +24,21 @@ return new class extends Migration {
             $table->string('verified_by', 191)->nullable();
             $table->text('verification_notes')->nullable();
             $table->timestamps();
-            $table->foreign('tenant_id')->references('id')->on('saas_tenants')->cascadeOnDelete();
+            if ($driver === 'mysql') {
+                $table->char('active_canonical_tenant_id', 36)
+                    ->nullable()
+                    ->storedAs('CASE WHEN is_canonical = 1 AND active = 1 THEN tenant_id ELSE NULL END');
+                $table->unique('active_canonical_tenant_id', 'saas_domains_one_active_canonical');
+            }
+            // MySQL rejects a cascading FK when tenant_id is also the base of
+            // the generated column used to enforce one active canonical host.
+            // Tenants are never deleted by the control plane, so RESTRICT is
+            // both compatible and the safer lifecycle rule here.
+            $table->foreign('tenant_id')->references('id')->on('saas_tenants');
             $table->index(['tenant_id', 'is_canonical']);
         });
 
-        $connection = DB::connection($this->connection);
-        if ($connection->getDriverName() === 'mysql') {
-            $connection->statement(
-                'ALTER TABLE saas_tenant_domains '
-                .'ADD active_canonical_tenant_id CHAR(36) GENERATED ALWAYS AS '
-                .'(CASE WHEN is_canonical = 1 AND active = 1 THEN tenant_id ELSE NULL END) STORED, '
-                .'ADD UNIQUE INDEX saas_domains_one_active_canonical (active_canonical_tenant_id)'
-            );
-        } elseif ($connection->getDriverName() === 'sqlite') {
+        if ($driver === 'sqlite') {
             $connection->statement(
                 'CREATE UNIQUE INDEX saas_domains_one_active_canonical '
                 .'ON saas_tenant_domains (tenant_id) WHERE is_canonical = 1 AND active = 1'
@@ -41,10 +46,14 @@ return new class extends Migration {
         }
 
         $base = strtolower((string) config('saas.base_domain'));
-        foreach (DB::connection($this->connection)->table('saas_tenants')->get(['id', 'slug']) as $tenant) {
+        foreach (DB::connection($this->connection)->table('saas_tenants')->get(['id', 'slug', 'installation_type', 'frontend_url']) as $tenant) {
+            $frontendHost = strtolower((string) parse_url((string) $tenant->frontend_url, PHP_URL_HOST));
+            $host = ($tenant->installation_type ?? 'shared') === 'dedicated' && $frontendHost !== ''
+                ? $frontendHost
+                : strtolower($tenant->slug.'.'.$base);
             DB::connection($this->connection)->table('saas_tenant_domains')->insert([
                 'tenant_id' => $tenant->id,
-                'host' => strtolower($tenant->slug.'.'.$base),
+                'host' => $host,
                 'is_canonical' => true,
                 'active' => true,
                 'verification_status' => 'verified',
