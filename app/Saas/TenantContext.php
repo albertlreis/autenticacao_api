@@ -57,8 +57,7 @@ final class TenantContext
         $this->tenant = $tenant;
         $root = rtrim(config('saas.storage_root'), '/').'/'.$tenant->id;
         $this->maintenanceLock = MaintenanceGate::acquire($root);
-        $url = config('saas.scheme').'://'.$tenant->slug.'.'.config('saas.base_domain');
-        if (config('saas.url_port')) $url .= ':'.(int) config('saas.url_port');
+        $url = TenantDomains::url($tenant);
         \Illuminate\Support\Facades\URL::forceRootUrl($url);
         \Illuminate\Support\Facades\URL::forceScheme(config('saas.scheme'));
         $connection = array_merge($profile, ['database' => $tenant->database_name]);

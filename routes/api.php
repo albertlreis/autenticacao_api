@@ -38,6 +38,11 @@ Route::prefix('v1')->group(function () {
             Route::post('logout', [AuthController::class, 'logout']);
         });
 
+        if (app()->environment(['local', 'testing']) && config('saas.local_developer_switch')) {
+            Route::get('dev/tenants', [\App\Saas\LocalDeveloperSwitchController::class, 'index']);
+            Route::post('dev/switch', [\App\Saas\LocalDeveloperSwitchController::class, 'switch']);
+        }
+
         /* ============================================================
          * ROTAS COM PERMISSÕES EM CACHE
          * ============================================================ */

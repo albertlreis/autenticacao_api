@@ -24,6 +24,7 @@ final class SaasPlatformTest extends TestCase
         DB::purge('saas_central');
         $migration = require __DIR__.'/../../database/saas/2026_09_07_000001_create_saas_platform.php';
         $migration->up();
+        (require __DIR__.'/../../database/saas/2026_09_10_000001_create_saas_tenant_domains.php')->up();
         DB::connection('saas_central')->table('saas_admins')->insert([
             'email' => 'operator@example.test', 'password' => Hash::make('test-password-123'), 'active' => true,
             'created_at' => now(), 'updated_at' => now(),

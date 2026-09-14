@@ -42,12 +42,14 @@ class SaasIsolationTest extends TestCase
             return new \App\Saas\TenantFilesystem($disk->getDriver(), $disk->getAdapter(), $config);
         });
         DB::connection('saas_central')->statement('CREATE TABLE saas_tenants (id TEXT PRIMARY KEY, name TEXT, slug TEXT, database_name TEXT, connection_profile TEXT, status TEXT, modules TEXT)');
+        DB::connection('saas_central')->statement('CREATE TABLE saas_tenant_domains (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT, host TEXT UNIQUE, is_canonical INTEGER, active INTEGER, verification_status TEXT, verified_at TEXT NULL, verified_by TEXT NULL, verification_notes TEXT NULL)');
         foreach (['alpha', 'beta'] as $slug) {
             touch($this->directory.'/sierra_'.$slug);
             DB::connection('saas_central')->table('saas_tenants')->insert([
                 'id' => $slug, 'name' => $slug, 'slug' => $slug, 'database_name' => 'sierra_'.$slug,
                 'connection_profile' => 'default', 'status' => 'active', 'modules' => json_encode(['estoque']),
             ]);
+            DB::connection('saas_central')->table('saas_tenant_domains')->insert(['tenant_id' => $slug, 'host' => $slug.'.sierra.test', 'is_canonical' => 1, 'active' => 1, 'verification_status' => 'verified']);
             $this->within($slug, function () use ($slug) {
                 DB::statement('CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT)');
                 DB::table('records')->insert(['id' => 1, 'value' => $slug]);

@@ -49,7 +49,7 @@
             "@php artisan key:generate --ansi"
         ],
         "test:unit": "php vendor/bin/phpunit --testsuite Unit",
-        "test:full": "php artisan test --without-tty"
+        "test:full": "php artisan test --without-tty --do-not-cache-result"
     },
     "extra": {
         "laravel": {
