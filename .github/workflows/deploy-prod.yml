@@ -97,6 +97,11 @@ jobs:
       SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL: https://sierra.acadsoft.com.br
       SIERRA_AUTH_APP_ENV: production
       SIERRA_AUTH_APP_DEBUG: 'false'
+      SIERRA_AUTH_COMMS_BASE_URL: ${{ vars.SIERRA_AUTH_COMMS_BASE_URL }}
+      SIERRA_AUTH_COMMS_API_KEY: ${{ secrets.SIERRA_AUTH_COMMS_API_KEY }}
+      SIERRA_AUTH_COMMS_API_SECRET: ${{ secrets.SIERRA_AUTH_COMMS_API_SECRET }}
+      SIERRA_AUTH_COMMS_ENABLED: ${{ vars.SIERRA_AUTH_COMMS_ENABLED }}
+      SIERRA_AUTH_COMMS_STORE_ONLY: ${{ vars.SIERRA_AUTH_COMMS_STORE_ONLY }}
 
     steps:
       - name: Start ssh-agent
@@ -132,6 +137,11 @@ jobs:
             SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL
             SIERRA_AUTH_APP_ENV
             SIERRA_AUTH_APP_DEBUG
+            SIERRA_AUTH_COMMS_BASE_URL
+            SIERRA_AUTH_COMMS_API_KEY
+            SIERRA_AUTH_COMMS_API_SECRET
+            SIERRA_AUTH_COMMS_ENABLED
+            SIERRA_AUTH_COMMS_STORE_ONLY
           )
 
           for name in "${required_env[@]}"; do
@@ -232,6 +242,16 @@ jobs:
               update_env_file "$file" PASSWORD_RESET_FRONTEND_URL "$SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL_B64"
             }
 
+            apply_comms_env() {
+              file="$1"
+
+              update_env_file "$file" COMMS_BASE_URL "$SIERRA_AUTH_COMMS_BASE_URL_B64"
+              update_env_file "$file" COMMS_API_KEY "$SIERRA_AUTH_COMMS_API_KEY_B64"
+              update_env_file "$file" COMMS_API_SECRET "$SIERRA_AUTH_COMMS_API_SECRET_B64"
+              update_env_file "$file" COMMS_ENABLED "$SIERRA_AUTH_COMMS_ENABLED_B64"
+              update_env_file "$file" COMMS_STORE_ONLY "$SIERRA_AUTH_COMMS_STORE_ONLY_B64"
+            }
+
             harden_env_file() {
               file="$1"
               chown root:www-data "$file"
@@ -260,6 +280,7 @@ jobs:
             backup_env_file "$HOST_ENV_FILE"
             apply_runtime_env "$HOST_ENV_FILE"
             apply_mail_env "$HOST_ENV_FILE"
+            apply_comms_env "$HOST_ENV_FILE"
             harden_env_file "$HOST_ENV_FILE"
 
             cd "$APP_DIR"
@@ -272,6 +293,7 @@ jobs:
             install_dependencies
             apply_runtime_env "$HOST_ENV_FILE"
             apply_mail_env "$HOST_ENV_FILE"
+            apply_comms_env "$HOST_ENV_FILE"
             harden_env_file "$HOST_ENV_FILE"
             docker cp "$HOST_ENV_FILE" "${CONTAINER_NAME}:/var/www/html/.env"
             docker restart "$CONTAINER_NAME"
@@ -326,6 +348,20 @@ jobs:
                 $set = $config["mail"]["mailers"]["ses-v2"]["options"]["ConfigurationSetName"] ?? null;
                 $region = $config["services"]["ses"]["region"] ?? null;
                 exit($mailer === "ses-v2" && $from === "no-reply@webleap.dev" && $set === "webleap-transactional" && $region === "us-east-1" ? 0 : 1);
+              '
+              php -r '
+                $config = require "bootstrap/cache/config.php";
+                $comms = $config["services"]["comms"] ?? [];
+                $baseUrl = $comms["base_url"] ?? null;
+                $apiKey = $comms["api_key"] ?? null;
+                $apiSecret = $comms["api_secret"] ?? null;
+                $valid = ($comms["enabled"] ?? false) === true
+                  && ($comms["store_only"] ?? true) === false
+                  && is_string($baseUrl)
+                  && str_starts_with($baseUrl, "https://")
+                  && is_string($apiKey) && $apiKey !== ""
+                  && is_string($apiSecret) && $apiSecret !== "";
+                exit($valid ? 0 : 1);
               '
 
               php artisan route:cache
