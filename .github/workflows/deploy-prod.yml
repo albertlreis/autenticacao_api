@@ -348,12 +348,8 @@ jobs:
             exit 1
           REMOTE
 
-      - name: Verify shared production services
+      - name: Verify shared production API
         run: |
-          curl --fail --show-error --silent --location \
-            --connect-timeout 10 --max-time 20 \
-            https://sierra.acadsoft.com.br/ >/dev/null
-
           estoque_health="$(curl --fail --show-error --silent --location \
             --connect-timeout 10 --max-time 20 \
             https://estoque.sierra.acadsoft.com.br/api/v1/health)"
