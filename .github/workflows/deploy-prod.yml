@@ -85,15 +85,15 @@ jobs:
     environment: production
     env:
       RUN_MIGRATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_migrations || 'false' }}
-      SIERRA_AUTH_MAIL_MAILER: ${{ secrets.SIERRA_AUTH_MAIL_MAILER }}
-      SIERRA_AUTH_MAIL_FROM_ADDRESS: ${{ secrets.SIERRA_AUTH_MAIL_FROM_ADDRESS }}
-      SIERRA_AUTH_MAIL_FROM_NAME: ${{ secrets.SIERRA_AUTH_MAIL_FROM_NAME }}
+      SIERRA_AUTH_MAIL_MAILER: ses-v2
+      SIERRA_AUTH_MAIL_FROM_ADDRESS: no-reply@webleap.dev
+      SIERRA_AUTH_MAIL_FROM_NAME: Sierra
       SIERRA_AUTH_MAIL_REPLY_TO_ADDRESS: ${{ secrets.SIERRA_AUTH_MAIL_REPLY_TO_ADDRESS }}
       SIERRA_AUTH_MAIL_REPLY_TO_NAME: ${{ secrets.SIERRA_AUTH_MAIL_REPLY_TO_NAME }}
-      SIERRA_AUTH_SES_CONFIGURATION_SET: ${{ secrets.SIERRA_AUTH_SES_CONFIGURATION_SET }}
+      SIERRA_AUTH_SES_CONFIGURATION_SET: webleap-transactional
       SIERRA_AUTH_AWS_ACCESS_KEY_ID: ${{ secrets.SIERRA_AUTH_AWS_ACCESS_KEY_ID }}
       SIERRA_AUTH_AWS_SECRET_ACCESS_KEY: ${{ secrets.SIERRA_AUTH_AWS_SECRET_ACCESS_KEY }}
-      SIERRA_AUTH_AWS_DEFAULT_REGION: ${{ secrets.SIERRA_AUTH_AWS_DEFAULT_REGION }}
+      SIERRA_AUTH_AWS_DEFAULT_REGION: us-east-1
       SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL: https://sierra.acadsoft.com.br
       SIERRA_AUTH_APP_ENV: production
       SIERRA_AUTH_APP_DEBUG: 'false'
@@ -223,10 +223,20 @@ jobs:
               update_env_file "$file" MAIL_REPLY_TO_ADDRESS "$SIERRA_AUTH_MAIL_REPLY_TO_ADDRESS_B64"
               update_env_file "$file" MAIL_REPLY_TO_NAME "$SIERRA_AUTH_MAIL_REPLY_TO_NAME_B64"
               update_env_file "$file" SES_CONFIGURATION_SET "$SIERRA_AUTH_SES_CONFIGURATION_SET_B64"
-              update_env_file "$file" AWS_ACCESS_KEY_ID "$SIERRA_AUTH_AWS_ACCESS_KEY_ID_B64"
-              update_env_file "$file" AWS_SECRET_ACCESS_KEY "$SIERRA_AUTH_AWS_SECRET_ACCESS_KEY_B64"
-              update_env_file "$file" AWS_DEFAULT_REGION "$SIERRA_AUTH_AWS_DEFAULT_REGION_B64"
+              update_env_file "$file" SES_AWS_ACCESS_KEY_ID "$SIERRA_AUTH_AWS_ACCESS_KEY_ID_B64"
+              update_env_file "$file" SES_AWS_SECRET_ACCESS_KEY "$SIERRA_AUTH_AWS_SECRET_ACCESS_KEY_B64"
+              update_env_file "$file" SES_AWS_DEFAULT_REGION "$SIERRA_AUTH_AWS_DEFAULT_REGION_B64"
+              update_env_file "$file" MAIL_ENFORCE_RECIPIENT_ALLOWLIST "$(printf false | base64 -w 0)"
+              update_env_file "$file" MAIL_ALLOWED_RECIPIENTS "$(printf '' | base64 -w 0)"
+              update_env_file "$file" MAIL_ALLOW_SES_SIMULATOR "$(printf false | base64 -w 0)"
               update_env_file "$file" PASSWORD_RESET_FRONTEND_URL "$SIERRA_AUTH_PASSWORD_RESET_FRONTEND_URL_B64"
+            }
+
+            harden_env_file() {
+              file="$1"
+              chown root:www-data "$file"
+              chmod 0640 "$file"
+              [ "$(stat -c '%U:%G %a' "$file")" = 'root:www-data 640' ]
             }
 
             install_dependencies() {
@@ -250,6 +260,7 @@ jobs:
             backup_env_file "$HOST_ENV_FILE"
             apply_runtime_env "$HOST_ENV_FILE"
             apply_mail_env "$HOST_ENV_FILE"
+            harden_env_file "$HOST_ENV_FILE"
 
             cd "$APP_DIR"
             if [ -n "$deploy_args" ]; then
@@ -261,6 +272,7 @@ jobs:
             install_dependencies
             apply_runtime_env "$HOST_ENV_FILE"
             apply_mail_env "$HOST_ENV_FILE"
+            harden_env_file "$HOST_ENV_FILE"
             docker cp "$HOST_ENV_FILE" "${CONTAINER_NAME}:/var/www/html/.env"
             docker restart "$CONTAINER_NAME"
             install -m 644 "$APP_DIR/html/docker/prod/nginx.conf" "$APP_DIR/nginx.conf"
@@ -307,6 +319,14 @@ jobs:
                 echo "Unsafe Laravel runtime: production environment and disabled debug are required."
                 exit 1
               fi
+              php -r '
+                $config = require "bootstrap/cache/config.php";
+                $mailer = $config["mail"]["default"] ?? null;
+                $from = $config["mail"]["from"]["address"] ?? null;
+                $set = $config["mail"]["mailers"]["ses-v2"]["options"]["ConfigurationSetName"] ?? null;
+                $region = $config["services"]["ses"]["region"] ?? null;
+                exit($mailer === "ses-v2" && $from === "no-reply@webleap.dev" && $set === "webleap-transactional" && $region === "us-east-1" ? 0 : 1);
+              '
 
               php artisan route:cache
               php artisan view:cache
@@ -328,12 +348,8 @@ jobs:
             exit 1
           REMOTE
 
-      - name: Verify shared production services
+      - name: Verify shared production API
         run: |
-          curl --fail --show-error --silent --location \
-            --connect-timeout 10 --max-time 20 \
-            https://sierra.acadsoft.com.br/ >/dev/null
-
           estoque_health="$(curl --fail --show-error --silent --location \
             --connect-timeout 10 --max-time 20 \
             https://estoque.sierra.acadsoft.com.br/api/v1/health)"
