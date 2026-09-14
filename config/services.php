@@ -33,4 +33,13 @@ return [
         'configuration_set' => env('SES_CONFIGURATION_SET'),
     ],
 
+    'comms' => [
+        'base_url' => env('COMMS_BASE_URL'),
+        'api_key' => env('COMMS_API_KEY'),
+        'api_secret' => env('COMMS_API_SECRET'),
+        'timeout' => env('COMMS_TIMEOUT', 10),
+        'enabled' => (bool) env('COMMS_ENABLED', false),
+        'store_only' => (bool) env('COMMS_STORE_ONLY', true),
+    ],
+
 ];

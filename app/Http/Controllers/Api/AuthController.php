@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AcessoRefreshToken;
 use App\Models\AcessoUsuario;
 use App\Services\PermissoesCacheService;
+use App\Services\Communication\PasswordResetCommunicationClient;
 use App\Support\Logging\SierraLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,9 +20,12 @@ use Throwable;
 
 class AuthController extends Controller
 {
-    private const PASSWORD_RESET_GENERIC_MESSAGE = 'Se houver cadastro para este e-mail, enviaremos instruções para redefinir sua senha.';
+    private const PASSWORD_RESET_SENT_MESSAGE = 'Solicitação recebida. O e-mail será enviado em instantes.';
 
-    public function __construct(private readonly PermissoesCacheService $permissoesCache) {}
+    public function __construct(
+        private readonly PermissoesCacheService $permissoesCache,
+        private readonly PasswordResetCommunicationClient $passwordResetCommunication,
+    ) {}
 
     public function me(Request $request): JsonResponse
     {
@@ -158,6 +162,15 @@ class AuthController extends Controller
 
         $email = Str::lower(trim((string) $request->email));
         $key = "forgot-password:{$email}:{$request->ip()}";
+        $cooldownKey = "forgot-password-cooldown:{$email}:{$request->ip()}";
+        $passwordResetThrottle = max(1, (int) config('auth.passwords.users.throttle', 60));
+
+        if (RateLimiter::tooManyAttempts($cooldownKey, 1)) {
+            return response()->json([
+                'message' => 'Aguarde alguns instantes antes de solicitar um novo e-mail de redefinição.',
+                'retry_after_seconds' => RateLimiter::availableIn($cooldownKey),
+            ], 429);
+        }
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
             return response()->json([
@@ -168,15 +181,53 @@ class AuthController extends Controller
 
         RateLimiter::hit($key, 60);
 
-        $usuario = AcessoUsuario::where('email', $email)
-            ->where('ativo', true)
-            ->first();
+        $usuario = AcessoUsuario::where('email', $email)->first();
 
-        if ($usuario) {
-            Password::sendResetLink(['email' => $email]);
+        if (!$usuario || !$usuario->ativo) {
+            RateLimiter::hit($cooldownKey, $passwordResetThrottle);
+            SierraLog::auth('auth.password_reset.ignored', [
+                'reason' => $usuario ? 'inactive' : 'unknown',
+            ]);
+            return response()->json([
+                'message' => self::PASSWORD_RESET_SENT_MESSAGE,
+                'retry_after_seconds' => $passwordResetThrottle,
+            ]);
         }
 
-        return response()->json(['message' => self::PASSWORD_RESET_GENERIC_MESSAGE]);
+        try {
+            $token = Password::createToken($usuario);
+            $resetUrl = rtrim((string) config('acesso.password_reset_frontend_url'), '/')
+                . '/resetar-senha?token=' . urlencode($token)
+                . '&email=' . urlencode($email);
+            $result = $this->passwordResetCommunication->queue($usuario, $resetUrl);
+        } catch (Throwable $e) {
+            if (isset($token)) {
+                Password::deleteToken($usuario);
+            }
+            SierraLog::auth('auth.password_reset.delivery_failed', [
+                'user_id' => $usuario->id,
+                'exception' => $e,
+            ], 'error');
+
+            RateLimiter::hit($cooldownKey, $passwordResetThrottle);
+            return response()->json([
+                'message' => self::PASSWORD_RESET_SENT_MESSAGE,
+                'retry_after_seconds' => $passwordResetThrottle,
+            ]);
+        }
+
+        RateLimiter::hit($cooldownKey, $passwordResetThrottle);
+
+        SierraLog::auth('auth.password_reset.queued', [
+            'user_id' => $usuario->id,
+            'communication_request_id' => $result['request_id'],
+            'correlation_id' => $result['correlation_id'],
+        ]);
+
+        return response()->json([
+            'message' => self::PASSWORD_RESET_SENT_MESSAGE,
+            'retry_after_seconds' => $passwordResetThrottle,
+        ]);
     }
 
     public function resetPassword(Request $request): JsonResponse
