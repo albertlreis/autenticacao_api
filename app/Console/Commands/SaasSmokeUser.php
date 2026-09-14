@@ -59,12 +59,6 @@ final class SaasSmokeUser extends Command
             return $this->reconcile($currentSlug ?: $this->tenantSlug($currentId), $password);
         }
 
-        if (! config('saas.enabled')) {
-            $this->error('SAAS_ENABLED must be true.');
-
-            return self::FAILURE;
-        }
-
         try {
             $tenant = $registry->byId($tenantArgument);
         } catch (Throwable) {

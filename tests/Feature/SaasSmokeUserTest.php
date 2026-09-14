@@ -99,4 +99,19 @@ final class SaasSmokeUserTest extends TestCase
         putenv('SIERRA_SMOKE_PASSWORD=short');
         $this->artisan('saas:smoke-user', ['tenant' => 'tenant-alpha'])->assertFailed();
     }
+
+    public function test_it_supports_a_dedicated_runtime_without_enabling_request_tenant_resolution(): void
+    {
+        config(['saas.enabled' => false]);
+
+        $this->artisan('saas:smoke-user', [
+            'tenant' => 'tenant-alpha',
+            '--email' => 'sierra-smoke+alpha@webleap.dev',
+        ])->assertSuccessful();
+
+        $this->assertDatabaseHas('acesso_usuarios', [
+            'email' => 'sierra-smoke+alpha@webleap.dev',
+            'ativo' => true,
+        ]);
+    }
 }
