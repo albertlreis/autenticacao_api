@@ -26,10 +26,10 @@ return [
     ],
 
     'ses' => [
-        'key' => env('AWS_ACCESS_KEY_ID'),
-        'secret' => env('AWS_SECRET_ACCESS_KEY'),
-        'token' => env('AWS_SESSION_TOKEN'),
-        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+        'key' => env('SES_AWS_ACCESS_KEY_ID'),
+        'secret' => env('SES_AWS_SECRET_ACCESS_KEY'),
+        'token' => env('SES_AWS_SESSION_TOKEN'),
+        'region' => env('SES_AWS_DEFAULT_REGION', 'us-east-1'),
         'configuration_set' => env('SES_CONFIGURATION_SET'),
     ],
 
